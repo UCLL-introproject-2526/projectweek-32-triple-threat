@@ -37,20 +37,20 @@ Before everyone start talking about what game to make, or starts coding, let's d
 
    While they wait, another person can (each bullet can be done by another person)
 
-   - [ ] Go to [Setting up](http://projectweek.leone.ucll.be/stories/setting-up/index.html) and only do the project management part
-   - [ ] Check out the other resources
+   - [X] Go to [Setting up](http://projectweek.leone.ucll.be/stories/setting-up/index.html) and only do the project management part
+   - [X] Check out the other resources
 
    While they wait, everyone else has
 
-   - [ ] run 'pip install pygame' in their terminal
-   - [ ] And of course, start talking about what game you want to make!
+   - [X] run 'pip install pygame' in their terminal
+   - [X] And of course, start talking about what game you want to make!
 
    But let the first person work, you're all waiting on them. This should take an hour, tops (ask for help if you're stuck for more than 15 minutes, also outside of that). Once they're done
 
-   - [ ] The person who follow it will commit and push their work
-   - [ ] Everyone else will pull the code
-   - [ ] Try and run the program, and make sure you have the same result
-   - [ ] Make sure everyone has everything running correctly before advancing to the next step
+   - [X] The person who follow it will commit and push their work
+   - [X] Everyone else will pull the code
+   - [X] Try and run the program, and make sure you have the same result
+   - [X] Make sure everyone has everything running correctly before advancing to the next step
 
 2. Now we're starting in earnest. We can start adding functionality. That might seem weird, but most code you write won't be about your game specifically (the gameplay code). I recommend you split up, and do the following tasks (all independent bullets) in parallell (one, or two people (pair programming) per bullet). Don't forget to commit and push as often as you can.
    - [ ] read this document top to bottom (there's some good stuff beyond the tutorial you want to know0
