@@ -17,46 +17,46 @@ Lastly, I mentioned it during the presentation, but I want to repeat: I'm really
 
 ### Setup
 
-0. Form a group (get a group number on toledo), and make a group name
-1. One student should go to the [classroom](https://classroom.github.com/assignment-invitations/6f5cc2057dcfa48a1943825395b03ba5) and accept the assignment. Find your name in the list and enters name of their group in this format: ## {GROUP_NUMBER) Team Name, (for example: 17 Lucky Seventeens, or 09 Dancing Queens)
-2. Add the following file to the root of the project, commit, and push. [.gitignore](https://raw.githubusercontent.com/github/gitignore/master/Python.gitignore)
-3. The rest of the team members should then click the link, find their name, then find the correct team.
-4. Everyone should clone the empty repository to their local disk. "Local disk" is very important here, **DO NOT CLONE IT ONTO ONEDRIVE OR ANY OTHER CLOUD STORAGE**. The reason is that git does everything onedrive does (version control, available in the cloud), but especially, git and onedrive don't play nice together (long story short, because they do the same thing). It causes strange errors that give no indication as to what the cause is.
+- [x] Form a group (get a group number on toledo), and make a group name
+- [x] One student should go to the [classroom](https://classroom.github.com/assignment-invitations/6f5cc2057dcfa48a1943825395b03ba5) and accept the assignment. Find your name in the list and enters name of their group in this format: ## {GROUP_NUMBER) Team Name, (for example: 17 Lucky Seventeens, or 09 Dancing Queens)
+- [x] Add the following file to the root of the project, commit, and push. [.gitignore](https://raw.githubusercontent.com/github/gitignore/master/Python.gitignore)
+- [x] The rest of the team members should then click the link, find their name, then find the correct team.
+- [x] Everyone should clone the empty repository to their local disk. "Local disk" is very important here, **DO NOT CLONE IT ONTO ONEDRIVE OR ANY OTHER CLOUD STORAGE**. The reason is that git does everything onedrive does (version control, available in the cloud), but especially, git and onedrive don't play nice together (long story short, because they do the same thing). It causes strange errors that give no indication as to what the cause is.
 
 ### Hello World
 
 Before everyone start talking about what game to make, or starts coding, let's do it in a smart way.
 
-1. Nobody can really start until there's a basic application that different things (like audio, keyboard input, gameplay) can hook into. Imagine it like an octopus: we need the body before we can attach the legs. We start by using
-   One person in your team (plus one pair programmer), ideally the fasted reader / coder should read and follow the following pages:
+- [ ] Nobody can really start until there's a basic application that different things (like audio, keyboard input, gameplay) can hook into. Imagine it like an octopus: we need the body before we can attach the legs. We start by using
+      One person in your team (plus one pair programmer), ideally the fasted reader / coder should read and follow the following pages:
 
-   - [Setting up](http://projectweek.leone.ucll.be/stories/setting-up/index.html) EXCEPT the project management part
-   - [Hello pygame](http://projectweek.leone.ucll.be/stories/hello-pygame/index.html)
-   - [Create window](http://projectweek.leone.ucll.be/stories/gui/create-window/index.html)
-   - Commit and push to the repository
+  - [Setting up](http://projectweek.leone.ucll.be/stories/setting-up/index.html) EXCEPT the project management part
+  - [Hello pygame](http://projectweek.leone.ucll.be/stories/hello-pygame/index.html)
+  - [Create window](http://projectweek.leone.ucll.be/stories/gui/create-window/index.html)
+  - Commit and push to the repository
 
-   While they wait, another person can (each bullet can be done by another person)
+  While they wait, another person can (each bullet can be done by another person)
 
-   - Go to [Setting up](http://projectweek.leone.ucll.be/stories/setting-up/index.html) and only do the project management part
-   - Check out the other resources
+  - Go to [Setting up](http://projectweek.leone.ucll.be/stories/setting-up/index.html) and only do the project management part
+  - Check out the other resources
 
-   While they wait, everyone else has
+  While they wait, everyone else has
 
-   - run 'pip install pygame' in their terminal
-   - And of course, start talking about what game you want to make!
+  - run 'pip install pygame' in their terminal
+  - And of course, start talking about what game you want to make!
 
-   But let the first person work, you're all waiting on them. This should take an hour, tops (ask for help if you're stuck for more than 15 minutes, also outside of that). Once they're done
+  But let the first person work, you're all waiting on them. This should take an hour, tops (ask for help if you're stuck for more than 15 minutes, also outside of that). Once they're done
 
-   - The person who follow it will commit and push their work
-   - Everyone else will pull the code
-   - Try and run the program, and make sure you have the same result
-   - Make sure everyone has everything running correctly before advancing to the next step
+  - The person who follow it will commit and push their work
+  - Everyone else will pull the code
+  - Try and run the program, and make sure you have the same result
+  - Make sure everyone has everything running correctly before advancing to the next step
 
-2. Now we're starting in earnest. We can start adding functionality. That might seem weird, but most code you write won't be about your game specifically (the gameplay code). I recommend you split up, and do the following tasks (all independent bullets) in parallell (one, or two people (pair programming) per bullet). Don't forget to commit and push as often as you can.
-   - read this document top to bottom (there's some good stuff beyond the tutorial you want to know0
-   - learn about graphics programming by following [Drawing a circle](http://projectweek.leone.ucll.be/stories/gui/graphics/draw-circle/index.html), then [Naive animation](http://projectweek.leone.ucll.be/stories/gui/graphics/animation/naive-animation/index.html), and [Clearing the buffer](http://projectweek.leone.ucll.be/stories/gui/graphics/animation/clearing-buffer/index.html). Afterwards you can follow the Graphics, Images, and Background sections in [the graph](http://projectweek.leone.ucll.be/graph.svg), or use one of the other online sources.
-   - learn about gameplay programming (much more will come in the workshop) by following the box "Game" in [the graph](http://projectweek.leone.ucll.be/graph.svg)
-   - learn about audio programming in the `Audio` section of [the graph](http://projectweek.leone.ucll.be/graph.svg) (it might sound too early, but audio is very important for capturing the "feel" of a game. Don't forget to use headphones ;)
+- [ ] Now we're starting in earnest. We can start adding functionality. That might seem weird, but most code you write won't be about your game specifically (the gameplay code). I recommend you split up, and do the following tasks (all independent bullets) in parallell (one, or two people (pair programming) per bullet). Don't forget to commit and push as often as you can.
+  - read this document top to bottom (there's some good stuff beyond the tutorial you want to know0
+  - learn about graphics programming by following [Drawing a circle](http://projectweek.leone.ucll.be/stories/gui/graphics/draw-circle/index.html), then [Naive animation](http://projectweek.leone.ucll.be/stories/gui/graphics/animation/naive-animation/index.html), and [Clearing the buffer](http://projectweek.leone.ucll.be/stories/gui/graphics/animation/clearing-buffer/index.html). Afterwards you can follow the Graphics, Images, and Background sections in [the graph](http://projectweek.leone.ucll.be/graph.svg), or use one of the other online sources.
+  - learn about gameplay programming (much more will come in the workshop) by following the box "Game" in [the graph](http://projectweek.leone.ucll.be/graph.svg)
+  - learn about audio programming in the `Audio` section of [the graph](http://projectweek.leone.ucll.be/graph.svg) (it might sound too early, but audio is very important for capturing the "feel" of a game. Don't forget to use headphones ;)
 
 And that's.. not it. Now we can properly start. And by we, I mean you ;) Jokes aside, attend the workshops, talk to your teammates (and other teams, they'll have similar problems to you, and might have found the solutions), check online documentation. And, above all else, ask for help, and have fun!
 
