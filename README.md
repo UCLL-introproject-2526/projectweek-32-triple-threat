@@ -27,36 +27,36 @@ Lastly, I mentioned it during the presentation, but I want to repeat: I'm really
 
 Before everyone start talking about what game to make, or starts coding, let's do it in a smart way.
 
-- [ ] Nobody can really start until there's a basic application that different things (like audio, keyboard input, gameplay) can hook into. Imagine it like an octopus: we need the body before we can attach the legs. We start by using
-      One person in your team (plus one pair programmer), ideally the fasted reader / coder should read and follow the following pages:
+1. Nobody can really start until there's a basic application that different things (like audio, keyboard input, gameplay) can hook into. Imagine it like an octopus: we need the body before we can attach the legs. We start by using
+   One person in your team (plus one pair programmer), ideally the fasted reader / coder should read and follow the following pages:
 
-  - [Setting up](http://projectweek.leone.ucll.be/stories/setting-up/index.html) EXCEPT the project management part
-  - [Hello pygame](http://projectweek.leone.ucll.be/stories/hello-pygame/index.html)
-  - [Create window](http://projectweek.leone.ucll.be/stories/gui/create-window/index.html)
-  - Commit and push to the repository
+   - [ ] [Setting up](http://projectweek.leone.ucll.be/stories/setting-up/index.html) EXCEPT the project management part
+   - [ ][Hello pygame](http://projectweek.leone.ucll.be/stories/hello-pygame/index.html)
+   - [ ] [Create window](http://projectweek.leone.ucll.be/stories/gui/create-window/index.html)
+   - [ ] Commit and push to the repository
 
-  While they wait, another person can (each bullet can be done by another person)
+   While they wait, another person can (each bullet can be done by another person)
 
-  - Go to [Setting up](http://projectweek.leone.ucll.be/stories/setting-up/index.html) and only do the project management part
-  - Check out the other resources
+   - [ ] Go to [Setting up](http://projectweek.leone.ucll.be/stories/setting-up/index.html) and only do the project management part
+   - [ ] Check out the other resources
 
-  While they wait, everyone else has
+   While they wait, everyone else has
 
-  - run 'pip install pygame' in their terminal
-  - And of course, start talking about what game you want to make!
+   - [ ] run 'pip install pygame' in their terminal
+   - [ ] And of course, start talking about what game you want to make!
 
-  But let the first person work, you're all waiting on them. This should take an hour, tops (ask for help if you're stuck for more than 15 minutes, also outside of that). Once they're done
+   But let the first person work, you're all waiting on them. This should take an hour, tops (ask for help if you're stuck for more than 15 minutes, also outside of that). Once they're done
 
-  - The person who follow it will commit and push their work
-  - Everyone else will pull the code
-  - Try and run the program, and make sure you have the same result
-  - Make sure everyone has everything running correctly before advancing to the next step
+   - [ ] The person who follow it will commit and push their work
+   - [ ] Everyone else will pull the code
+   - [ ] Try and run the program, and make sure you have the same result
+   - [ ] Make sure everyone has everything running correctly before advancing to the next step
 
-- [ ] Now we're starting in earnest. We can start adding functionality. That might seem weird, but most code you write won't be about your game specifically (the gameplay code). I recommend you split up, and do the following tasks (all independent bullets) in parallell (one, or two people (pair programming) per bullet). Don't forget to commit and push as often as you can.
-  - read this document top to bottom (there's some good stuff beyond the tutorial you want to know0
-  - learn about graphics programming by following [Drawing a circle](http://projectweek.leone.ucll.be/stories/gui/graphics/draw-circle/index.html), then [Naive animation](http://projectweek.leone.ucll.be/stories/gui/graphics/animation/naive-animation/index.html), and [Clearing the buffer](http://projectweek.leone.ucll.be/stories/gui/graphics/animation/clearing-buffer/index.html). Afterwards you can follow the Graphics, Images, and Background sections in [the graph](http://projectweek.leone.ucll.be/graph.svg), or use one of the other online sources.
-  - learn about gameplay programming (much more will come in the workshop) by following the box "Game" in [the graph](http://projectweek.leone.ucll.be/graph.svg)
-  - learn about audio programming in the `Audio` section of [the graph](http://projectweek.leone.ucll.be/graph.svg) (it might sound too early, but audio is very important for capturing the "feel" of a game. Don't forget to use headphones ;)
+2. Now we're starting in earnest. We can start adding functionality. That might seem weird, but most code you write won't be about your game specifically (the gameplay code). I recommend you split up, and do the following tasks (all independent bullets) in parallell (one, or two people (pair programming) per bullet). Don't forget to commit and push as often as you can.
+   - [ ] read this document top to bottom (there's some good stuff beyond the tutorial you want to know0
+   - [ ] learn about graphics programming by following [Drawing a circle](http://projectweek.leone.ucll.be/stories/gui/graphics/draw-circle/index.html), then [Naive animation](http://projectweek.leone.ucll.be/stories/gui/graphics/animation/naive-animation/index.html), and [Clearing the buffer](http://projectweek.leone.ucll.be/stories/gui/graphics/animation/clearing-buffer/index.html). Afterwards you can follow the Graphics, Images, and Background sections in [the graph](http://projectweek.leone.ucll.be/graph.svg), or use one of the other online sources.
+   - [ ] learn about gameplay programming (much more will come in the workshop) by following the box "Game" in [the graph](http://projectweek.leone.ucll.be/graph.svg)
+   - [ ] learn about audio programming in the `Audio` section of [the graph](http://projectweek.leone.ucll.be/graph.svg) (it might sound too early, but audio is very important for capturing the "feel" of a game. Don't forget to use headphones ;)
 
 And that's.. not it. Now we can properly start. And by we, I mean you ;) Jokes aside, attend the workshops, talk to your teammates (and other teams, they'll have similar problems to you, and might have found the solutions), check online documentation. And, above all else, ask for help, and have fun!
 
@@ -68,14 +68,14 @@ We want you to make a game, and we want you to spend all week on it (you can't b
 
 The requirement are:
 
-- It must be able to run on most machines (installing specific modules etc is ok)
-- It's playable for at least one minute ('playable' is a fuzzy concept, but it's impossible to define what a game is. Ask me if in doubt)
-- It follows the [Global Game Jam Code of Conduct](https://v3.globalgamejam.org/inclusiveness-policy-and-code-conduct). It's not a very clear document, but the first paragraph of "Appropriate behaviour" refers to your game as well. An easy rule of thumb is "If I'm not sure my game follows the rules", you should ask me if it does. A simpler one is "would I post this game on linkedin and keep it there during my career"
+- [ ] It must be able to run on most machines (installing specific modules etc is ok)
+- [ ] It's playable for at least one minute ('playable' is a fuzzy concept, but it's impossible to define what a game is. Ask me if in doubt)
+- [ ] It follows the [Global Game Jam Code of Conduct](https://v3.globalgamejam.org/inclusiveness-policy-and-code-conduct). It's not a very clear document, but the first paragraph of "Appropriate behaviour" refers to your game as well. An easy rule of thumb is "If I'm not sure my game follows the rules", you should ask me if it does. A simpler one is "would I post this game on linkedin and keep it there during my career"
 
 What we explicitly don't care about (you are allowed to, but we want to make it clear it's an option)
 
-- Your game uses extra hardware such as a controller, webcam, microphone, heart rate monitor, etc
-- Your game involves other software not in python, eg a database, or a c++ driver for... something. We do _not_ recommend this, we do recommend you ask a lecturer when you want to do this, to see if there's another solution
+- [ ] Your game uses extra hardware such as a controller, webcam, microphone, heart rate monitor, etc
+- [ ] Your game involves other software not in python, eg a database, or a c++ driver for... something. We do _not_ recommend this, we do recommend you ask a lecturer when you want to do this, to see if there's another solution
 
 ### Attributions
 
