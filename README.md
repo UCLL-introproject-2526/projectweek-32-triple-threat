@@ -30,10 +30,10 @@ Before everyone start talking about what game to make, or starts coding, let's d
 1. Nobody can really start until there's a basic application that different things (like audio, keyboard input, gameplay) can hook into. Imagine it like an octopus: we need the body before we can attach the legs. We start by using
    One person in your team (plus one pair programmer), ideally the fasted reader / coder should read and follow the following pages:
 
-   - [ ] [Setting up](http://projectweek.leone.ucll.be/stories/setting-up/index.html) EXCEPT the project management part
-   - [ ] [Hello pygame](http://projectweek.leone.ucll.be/stories/hello-pygame/index.html)
-   - [ ] [Create window](http://projectweek.leone.ucll.be/stories/gui/create-window/index.html)
-   - [ ] Commit and push to the repository
+   - [x] [Setting up](http://projectweek.leone.ucll.be/stories/setting-up/index.html) EXCEPT the project management part
+   - [x] [Hello pygame](http://projectweek.leone.ucll.be/stories/hello-pygame/index.html)
+   - [x] [Create window](http://projectweek.leone.ucll.be/stories/gui/create-window/index.html)
+   - [x] Commit and push to the repository
 
    While they wait, another person can (each bullet can be done by another person)
 
