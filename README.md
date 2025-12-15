@@ -31,7 +31,7 @@ Before everyone start talking about what game to make, or starts coding, let's d
    One person in your team (plus one pair programmer), ideally the fasted reader / coder should read and follow the following pages:
 
    - [ ] [Setting up](http://projectweek.leone.ucll.be/stories/setting-up/index.html) EXCEPT the project management part
-   - [ ][Hello pygame](http://projectweek.leone.ucll.be/stories/hello-pygame/index.html)
+   - [ ] [Hello pygame](http://projectweek.leone.ucll.be/stories/hello-pygame/index.html)
    - [ ] [Create window](http://projectweek.leone.ucll.be/stories/gui/create-window/index.html)
    - [ ] Commit and push to the repository
 
