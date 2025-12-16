@@ -53,7 +53,7 @@ Before everyone start talking about what game to make, or starts coding, let's d
    - [X] Make sure everyone has everything running correctly before advancing to the next step
 
 2. Now we're starting in earnest. We can start adding functionality. That might seem weird, but most code you write won't be about your game specifically (the gameplay code). I recommend you split up, and do the following tasks (all independent bullets) in parallell (one, or two people (pair programming) per bullet). Don't forget to commit and push as often as you can.
-   - [ ] read this document top to bottom (there's some good stuff beyond the tutorial you want to know0
+   - [X] read this document top to bottom (there's some good stuff beyond the tutorial you want to know0
    - [ ] learn about graphics programming by following [Drawing a circle](http://projectweek.leone.ucll.be/stories/gui/graphics/draw-circle/index.html), then [Naive animation](http://projectweek.leone.ucll.be/stories/gui/graphics/animation/naive-animation/index.html), and [Clearing the buffer](http://projectweek.leone.ucll.be/stories/gui/graphics/animation/clearing-buffer/index.html). Afterwards you can follow the Graphics, Images, and Background sections in [the graph](http://projectweek.leone.ucll.be/graph.svg), or use one of the other online sources.
    - [ ] learn about gameplay programming (much more will come in the workshop) by following the box "Game" in [the graph](http://projectweek.leone.ucll.be/graph.svg)
    - [ ] learn about audio programming in the `Audio` section of [the graph](http://projectweek.leone.ucll.be/graph.svg) (it might sound too early, but audio is very important for capturing the "feel" of a game. Don't forget to use headphones ;)
