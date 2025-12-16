@@ -1,7 +1,6 @@
 import pygame
 import random
 import sys
-import math
 import os
 
 # --- PAD CONFIGURATIE ---
@@ -44,19 +43,19 @@ BUTTON_FONT = pygame.font.SysFont("Arial", 24, bold=True)
 
 # 1. Sprites voor tijdens het RIJDEN (Achterkant / Bovenkant)
 CAR_DRIVE_1 = pygame.transform.rotate(load_image("race-car.png"), 90)
-CAR_DRIVE_2 = pygame.transform.rotate(load_image("enemy-car-1.png"), 0) 
-CAR_DRIVE_3 = pygame.transform.rotate(load_image("enemy-car-3.png"), 0)
+CAR_DRIVE_2 = pygame.transform.rotate(load_image("backviewbmwm3.png"), 0) 
+CAR_DRIVE_3 = pygame.transform.rotate(load_image("backview_skyline.png"), 0)
 PLAYER_DRIVE_SPRITES = [CAR_DRIVE_1, CAR_DRIVE_2, CAR_DRIVE_3]
 
 # 2. Sprites voor in het MENU (Statische Voorkant)
 # We draaien/flippen ze eenmalig zodat ze 'naar de camera' kijken
-MENU_CAR_1 = pygame.transform.flip(pygame.transform.rotate(load_image("race-car.png"), 90), False, True)
-MENU_CAR_2 = pygame.transform.flip(load_image("enemy-car-1.png"), False, True)
-MENU_CAR_3 = pygame.transform.flip(load_image("enemy-car-3.png"), False, True)
+MENU_CAR_1 = CAR_DRIVE_1
+MENU_CAR_2 = CAR_DRIVE_2
+MENU_CAR_3 = CAR_DRIVE_3
 PLAYER_MENU_VIEWS = [MENU_CAR_1, MENU_CAR_2, MENU_CAR_3]
 
 # Vijanden
-ENEMY_FILENAMES = ["enemy-car-1.png", "enemy-car-2.png", "enemy-car-3.png", "enemy-car-4.png"]
+ENEMY_FILENAMES = ["kart.png", "front_view.png", "sport_car.png", "bmw.png" , "bmw2.png", "porsche2.png", "Bmwm3gtr.png"]
 IMG_ENEMIES = [pygame.transform.rotate(load_image(f), 0) for f in ENEMY_FILENAMES]
 IMG_FALLBACK_ENEMY = pygame.transform.rotate(load_image("car.png"), 0)
 
@@ -419,7 +418,7 @@ class Player:
             p_color = (0, 255, 255) if random.random() < 0.5 else (255, 200, 50)
             self.particles.append(Particle(rect.centerx + random.randint(-10, 10), rect.bottom - 10, p_color))
         for p in self.particles[:]:
-            p.update(); 
+            p.update() 
             if p.life <= 0: self.particles.remove(p)
 
     def get_rect_no_rotate(self):
