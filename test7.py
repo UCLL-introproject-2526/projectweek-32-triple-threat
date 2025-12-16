@@ -31,24 +31,22 @@ pygame.mixer.init()
 
 W, H = 1024, 768
 screen = pygame.display.set_mode((W, H))
-pygame.display.set_caption("Triple Threat - Ultimate Edition")
+pygame.display.set_caption("Triple Threat - Realistic Edition")
 clock = pygame.time.Clock()
 
 # Fonts
 FONT = pygame.font.SysFont("Arial", 24, bold=True)
 BIG_FONT = pygame.font.SysFont("Arial", 64, bold=True)
-MENU_TITLE_FONT = pygame.font.SysFont("Arial", 40, bold=True) # Iets kleiner dan BIG_FONT
+MENU_TITLE_FONT = pygame.font.SysFont("Arial", 40, bold=True)
 BUTTON_FONT = pygame.font.SysFont("Arial", 30, bold=True)
 
 # --- ASSETS LADEN ---
-# Speler auto opties
 CAR_OPTION_1 = pygame.transform.rotate(load_image("race-car.png"), 90)
 CAR_OPTION_2 = pygame.transform.rotate(load_image("enemy-car-1.png"), 0) 
 CAR_OPTION_3 = pygame.transform.rotate(load_image("enemy-car-3.png"), 0)
 
 PLAYER_CAR_OPTIONS = [CAR_OPTION_1, CAR_OPTION_2, CAR_OPTION_3]
 
-# Vijanden
 ENEMY_FILENAMES = ["enemy-car-1.png", "enemy-car-2.png", "enemy-car-3.png", "enemy-car-4.png"]
 IMG_ENEMIES = [pygame.transform.rotate(load_image(f), 0) for f in ENEMY_FILENAMES]
 IMG_FALLBACK_ENEMY = pygame.transform.rotate(load_image("car.png"), 0)
@@ -70,9 +68,10 @@ SCALE_CACHE = {}
 
 # --- CONSTANTEN ---
 LANES = 3
-ROAD_NEAR_Y = H - 40
+# AANGEPAST: Weg loopt nu door tot helemaal onderaan het scherm
+ROAD_NEAR_Y = H 
 ROAD_FAR_Y = 120
-ROAD_NEAR_W = int(W * 0.85)
+ROAD_NEAR_W = int(W * 0.95) # Iets breder onderaan voor betere 'look' bij rand
 ROAD_FAR_W = int(W * 0.15)
 ROAD_CENTER_X = W // 2
 Z_SPAWN_MIN = 0.03
@@ -80,8 +79,9 @@ Z_SPAWN_MAX = 0.20
 
 # KLEUREN
 NEON_CYAN = (0, 255, 255)
-DARK_PANEL = (20, 30, 40, 200) # Donkerblauw transparant
 WHITE = (255, 255, 255)
+KERB_RED = (200, 0, 0)
+KERB_WHITE = (230, 230, 230)
 
 # --- HULPFUNCTIES ---
 def clamp(x, a, b): return max(a, min(b, x))
@@ -90,12 +90,12 @@ def ease_in(t): return t * t
 
 def road_edges_at_y(y):
     t = (y - ROAD_FAR_Y) / (ROAD_NEAR_Y - ROAD_FAR_Y)
-    t = clamp(t, 0.0, 1.0)
+    if t < 0: t = 0
     half_w = lerp(ROAD_FAR_W / 2, ROAD_NEAR_W / 2, t)
     return ROAD_CENTER_X - half_w, ROAD_CENTER_X + half_w
 
 def y_from_z(z):
-    z = clamp(z, 0.0, 1.0)
+    if z < 0: z = 0
     t = ease_in(z)
     return lerp(ROAD_FAR_Y, ROAD_NEAR_Y, t)
 
@@ -105,9 +105,10 @@ def lane_center_x_at_y(lane_idx, y):
     return left + lane_w * (lane_idx + 0.5)
 
 def scale_cached(img, size, cache):
-    key = (id(img), size[0], size[1])
+    w, h = max(1, int(size[0])), max(1, int(size[1]))
+    key = (id(img), w, h)
     if key not in cache:
-        cache[key] = pygame.transform.smoothscale(img, size)
+        cache[key] = pygame.transform.smoothscale(img, (w, h))
     return cache[key]
 
 def draw_text_with_outline(surf, text, font, color, pos, center=False):
@@ -128,51 +129,35 @@ def draw_text_with_outline(surf, text, font, color, pos, center=False):
     surf.blit(render_base, (x, y))
 
 def draw_shadow(surf, rect, alpha=100):
-    shadow_surf = pygame.Surface((rect.width, rect.height // 4), pygame.SRCALPHA)
+    if rect.width <= 0 or rect.height <= 0: return
+    shadow_surf = pygame.Surface((rect.width, max(1, rect.height // 4)), pygame.SRCALPHA)
     pygame.draw.ellipse(shadow_surf, (0, 0, 0, alpha), shadow_surf.get_rect())
     surf.blit(shadow_surf, (rect.x, rect.bottom - rect.height // 6))
 
-# --- UI FUNCTIES (NIEUW) ---
 def draw_glass_panel(surf, rect, color=(30, 30, 40, 180), border_color=(255, 255, 255, 50)):
-    """Tekent een modern halftransparant paneel"""
-    # Achtergrond
     s = pygame.Surface((rect.width, rect.height), pygame.SRCALPHA)
     pygame.draw.rect(s, color, s.get_rect(), border_radius=15)
     surf.blit(s, rect.topleft)
-    # Rand
     pygame.draw.rect(surf, border_color, rect, 2, border_radius=15)
 
 def draw_button(surf, rect, text, hover_color=(0, 200, 255), default_color=(0, 100, 200)):
     mouse_pos = pygame.mouse.get_pos()
     is_hovering = rect.collidepoint(mouse_pos)
     color = hover_color if is_hovering else default_color
-    
-    # Schaduw
-    shadow_rect = rect.copy()
-    shadow_rect.y += 4
+    shadow_rect = rect.copy(); shadow_rect.y += 4
     pygame.draw.rect(surf, (0,0,0,100), shadow_rect, border_radius=10)
-    
-    # Knop body
     pygame.draw.rect(surf, color, rect, border_radius=10)
-    
-    # Glans effect (bovenkant lichter)
     glance_rect = pygame.Rect(rect.x, rect.y, rect.width, rect.height//2)
     s = pygame.Surface((glance_rect.width, glance_rect.height), pygame.SRCALPHA)
     pygame.draw.rect(s, (255, 255, 255, 40), s.get_rect(), border_top_left_radius=10, border_top_right_radius=10)
     surf.blit(s, glance_rect.topleft)
-
-    # Witte rand
     pygame.draw.rect(surf, (255, 255, 255), rect, 2, border_radius=10)
-    
     text_surf = BUTTON_FONT.render(text, True, (255, 255, 255))
     text_rect = text_surf.get_rect(center=rect.center)
-    # Tekst drop shadow
-    text_shadow = BUTTON_FONT.render(text, True, (0, 0, 0))
-    surf.blit(text_shadow, (text_rect.x + 2, text_rect.y + 2))
     surf.blit(text_surf, text_rect)
 
 
-# --- TEKEN GAME ELEMENTS ---
+# --- TEKEN OMGEVING (AANGEPAST) ---
 def draw_background_and_terrain(surf, t_scroll):
     for y in range(H):
         c = int(40 * (y/H))
@@ -186,6 +171,7 @@ def draw_background_and_terrain(surf, t_scroll):
     pts.append((W, H))
     pygame.draw.polygon(surf, (10, 5, 15), pts)
 
+    # Grond (donkerder gras)
     bands = 40
     for i in range(bands):
         t0 = i / bands
@@ -203,6 +189,7 @@ def draw_background_and_terrain(surf, t_scroll):
         pygame.draw.polygon(surf, col, right_poly)
 
 def draw_road(surf, dash_offset=0.0):
+    # Basis coördinaten
     far_left = ROAD_CENTER_X - ROAD_FAR_W // 2
     far_right = ROAD_CENTER_X + ROAD_FAR_W // 2
     near_left = ROAD_CENTER_X - ROAD_NEAR_W // 2
@@ -210,12 +197,44 @@ def draw_road(surf, dash_offset=0.0):
     road_poly = [(far_left, ROAD_FAR_Y), (far_right, ROAD_FAR_Y),
                  (near_right, ROAD_NEAR_Y), (near_left, ROAD_NEAR_Y)]
     
+    # 1. Asfalt
     pygame.draw.polygon(surf, (40, 40, 50), road_poly)
-    s = pygame.Surface((W,H), pygame.SRCALPHA)
-    pygame.draw.lines(s, (0, 255, 255, 50), True, road_poly, 10)
-    surf.blit(s, (0,0))
-    pygame.draw.lines(surf, (0, 200, 255), True, road_poly, 3)
 
+    # 2. Realistische Randen (Curbs / Rumble Strips)
+    # We tekenen blokjes langs de rand
+    num_segments = 24
+    for i in range(num_segments):
+        t0 = i / num_segments
+        t1 = (i + 1) / num_segments
+        
+        y0 = lerp(ROAD_FAR_Y, ROAD_NEAR_Y, t0)
+        y1 = lerp(ROAD_FAR_Y, ROAD_NEAR_Y, t1)
+        
+        # Bepaal breedte van de weg op y0 en y1
+        l0, r0 = road_edges_at_y(y0)
+        l1, r1 = road_edges_at_y(y1)
+        
+        # Breedte van de curb (schaalt mee met perspectief)
+        curb_w0 = (r0 - l0) * 0.05 
+        curb_w1 = (r1 - l1) * 0.05
+        
+        # Kleur bepalen (Rood/Wit afwisselend + scrollen)
+        # We gebruiken dash_offset zodat ze bewegen
+        scroll_val = (t0 + dash_offset) * 10 # factor 10 voor frequentie
+        if int(scroll_val) % 2 == 0:
+            col = KERB_RED
+        else:
+            col = KERB_WHITE
+            
+        # Linker curb
+        l_poly = [(l0 - curb_w0, y0), (l0, y0), (l1, y1), (l1 - curb_w1, y1)]
+        pygame.draw.polygon(surf, col, l_poly)
+        
+        # Rechter curb
+        r_poly = [(r0, y0), (r0 + curb_w0, y0), (r1 + curb_w1, y1), (r1, y1)]
+        pygame.draw.polygon(surf, col, r_poly)
+
+    # 3. Rijbaan scheidingen
     for i in range(1, LANES):
         far_lane_w = ROAD_FAR_W / LANES
         near_lane_w = ROAD_NEAR_W / LANES
@@ -223,6 +242,7 @@ def draw_road(surf, dash_offset=0.0):
         x_near = (ROAD_CENTER_X - ROAD_NEAR_W / 2) + near_lane_w * i
         pygame.draw.line(surf, (70, 70, 80), (x_far, ROAD_FAR_Y), (x_near, ROAD_NEAR_Y), 1)
 
+    # 4. Scrollende witte strepen
     dash_count = 12
     for lane_i in range(1, LANES):
         far_lane_w = ROAD_FAR_W / LANES
@@ -242,11 +262,10 @@ def draw_road(surf, dash_offset=0.0):
             pygame.draw.line(surf, col, (x0, y0), (x1, y1), 3)
 
 
-# --- PARTICLES & OBJECTS ---
+# --- CLASSES ---
 class Particle:
     def __init__(self, x, y, color):
-        self.x = x
-        self.y = y
+        self.x = x; self.y = y
         self.size = random.randint(4, 8)
         self.color = color
         self.life = 20
@@ -254,10 +273,8 @@ class Particle:
         self.vy = random.uniform(2, 5)
 
     def update(self):
-        self.x += self.vx
-        self.y += self.vy
-        self.life -= 1
-        self.size = max(0, self.size - 0.2)
+        self.x += self.vx; self.y += self.vy
+        self.life -= 1; self.size = max(0, self.size - 0.2)
 
     def draw(self, surf):
         if self.life > 0 and self.size > 0:
@@ -267,8 +284,7 @@ class Particle:
 
 class Building:
     def __init__(self, side, z):
-        self.side = side 
-        self.z = z
+        self.side = side; self.z = z
         self.width_factor = random.uniform(0.6, 1.4)
         self.height_factor = random.uniform(1.2, 3.5)
         gray = random.randint(20, 50)
@@ -278,11 +294,9 @@ class Building:
         cols = int(self.width_factor * 2)
         for r in range(rows):
             for c in range(cols):
-                if random.random() > 0.4: 
-                    self.lights.append((c, r))
+                if random.random() > 0.4: self.lights.append((c, r))
 
-    def update(self, speed):
-        self.z += speed
+    def update(self, speed): self.z += speed
 
     def draw(self, surf):
         y = y_from_z(self.z)
@@ -309,21 +323,13 @@ class Building:
 class Player:
     def __init__(self, image):
         self.original_image = image
-        self.lane = 1
-        self.target_lane = 1
-        self.lane_blend = 1.0 
-        self.lane_change_speed = 0.12
-        self.z = 0.92
-        self.base_w = 80
-        self.base_h = 110
-        self.angle = 0
+        self.lane = 1; self.target_lane = 1; self.lane_blend = 1.0 
+        self.lane_change_speed = 0.12; self.z = 0.92
+        self.base_w = 80; self.base_h = 110; self.angle = 0
         self.particles = []
 
-    def move_left(self):
-        self.target_lane = max(0, self.target_lane - 1)
-
-    def move_right(self):
-        self.target_lane = min(LANES - 1, self.target_lane + 1)
+    def move_left(self): self.target_lane = max(0, self.target_lane - 1)
+    def move_right(self): self.target_lane = min(LANES - 1, self.target_lane + 1)
 
     def update(self, boosting):
         if self.lane != self.target_lane:
@@ -331,11 +337,9 @@ class Player:
             tilt_direction = -1 if self.target_lane < self.lane else 1
             self.angle = lerp(self.angle, tilt_direction * -15, 0.2) 
             if self.lane_blend >= 1.0:
-                self.lane = self.target_lane
-                self.lane_blend = 1.0
+                self.lane = self.target_lane; self.lane_blend = 1.0
         else:
-            self.lane_blend = 1.0
-            self.angle = lerp(self.angle, 0, 0.2)
+            self.lane_blend = 1.0; self.angle = lerp(self.angle, 0, 0.2)
 
         if boosting:
             rect = self.get_rect_no_rotate()
@@ -343,7 +347,7 @@ class Player:
             self.particles.append(Particle(rect.centerx + random.randint(-10, 10), rect.bottom - 10, p_color))
         
         for p in self.particles[:]:
-            p.update()
+            p.update(); 
             if p.life <= 0: self.particles.remove(p)
 
     def get_rect_no_rotate(self):
@@ -355,15 +359,11 @@ class Player:
         else:
             x = lane_center_x_at_y(self.lane, y)
         scale = lerp(0.35, 1.12, self.z)
-        w = int(self.base_w * scale)
-        h = int(self.base_h * scale)
-        rect = pygame.Rect(0, 0, w, h)
-        rect.centerx = int(x)
-        rect.bottom = int(y)
+        w = int(self.base_w * scale); h = int(self.base_h * scale)
+        rect = pygame.Rect(0, 0, w, h); rect.centerx = int(x); rect.bottom = int(y)
         return rect
 
-    def get_rect(self):
-        return self.get_rect_no_rotate()
+    def get_rect(self): return self.get_rect_no_rotate()
 
     def draw(self, surf):
         for p in self.particles: p.draw(surf)
@@ -374,48 +374,32 @@ class Player:
             img = pygame.transform.rotate(img, self.angle)
             new_rect = img.get_rect(center=r.center)
             surf.blit(img, new_rect.topleft)
-        else:
-            surf.blit(img, r.topleft)
+        else: surf.blit(img, r.topleft)
 
 class Obstacle:
     def __init__(self, lane, z, kind="car", sprite=None):
-        self.lane = lane
-        self.z = z
-        self.kind = kind
-        self.sprite = sprite
-        self.base_w = 75
-        self.base_h = 145
-        if kind == "roadblock":
-            self.base_w = 150
-            self.base_h = 65
-        elif kind == "cone":
-            self.base_w = 34
-            self.base_h = 34
+        self.lane = lane; self.z = z; self.kind = kind; self.sprite = sprite
+        self.base_w = 75; self.base_h = 145
+        if kind == "roadblock": self.base_w = 150; self.base_h = 65
+        elif kind == "cone": self.base_w = 34; self.base_h = 34
 
-    def update(self, dz):
-        self.z += dz
+    def update(self, dz): self.z += dz
 
     def get_rect(self):
         y = y_from_z(self.z)
         scale = lerp(0.22, 1.18, self.z)
-        w = int(self.base_w * scale)
-        h = int(self.base_h * scale)
+        w = int(self.base_w * scale); h = int(self.base_h * scale)
         if self.kind == "roadblock":
-            x0 = lane_center_x_at_y(self.lane, y)
-            x1 = lane_center_x_at_y(self.lane + 1, y)
-            x = (x0 + x1) * 0.5
-            lane_w = (road_edges_at_y(y)[1] - road_edges_at_y(y)[0]) / LANES
+            x0 = lane_center_x_at_y(self.lane, y); x1 = lane_center_x_at_y(self.lane + 1, y)
+            x = (x0 + x1) * 0.5; lane_w = (road_edges_at_y(y)[1] - road_edges_at_y(y)[0]) / LANES
             w = int(lane_w * 2 * 0.95 * scale)
-        else:
-            x = lane_center_x_at_y(self.lane, y)
-        rect = pygame.Rect(0, 0, w, h)
-        rect.center = (int(x), int(y - h * 0.10))
+        else: x = lane_center_x_at_y(self.lane, y)
+        rect = pygame.Rect(0, 0, w, h); rect.center = (int(x), int(y - h * 0.10))
         return rect
 
     def draw(self, surf):
         r = self.get_rect()
         draw_shadow(surf, r)
-
         if self.kind == "car":
             car_img = self.sprite if self.sprite else IMG_FALLBACK_ENEMY
             img = scale_cached(car_img, (r.w, r.h), SCALE_CACHE)
@@ -424,10 +408,8 @@ class Obstacle:
             pygame.draw.rect(surf, (255, 200, 0), r, border_radius=5)
             pygame.draw.rect(surf, (50,50,50), r, 2, border_radius=5)
             for i in range(0, r.w, 20):
-                p1 = (r.left + i, r.bottom)
-                p2 = (r.left + i + 10, r.top)
-                if p2[0] < r.right:
-                    pygame.draw.line(surf, (0,0,0), p1, p2, 6)
+                p1 = (r.left + i, r.bottom); p2 = (r.left + i + 10, r.top)
+                if p2[0] < r.right: pygame.draw.line(surf, (0,0,0), p1, p2, 6)
         elif self.kind == "cone":
             pygame.draw.rect(surf, (255, 100, 0), r)
             mid_rect = pygame.Rect(r.x + 2, r.y + r.h//3, r.w - 4, r.h//3)
@@ -438,17 +420,13 @@ def choose_spawn_pattern(obstacles, z_spawn):
     for o in obstacles:
         if abs(o.z - z_spawn) < 0.15:
             occupied_lanes.append(o.lane)
-            if o.kind == "roadblock":
-                occupied_lanes.append(o.lane + 1)
+            if o.kind == "roadblock": occupied_lanes.append(o.lane + 1)
     available_lanes = [l for l in range(LANES) if l not in occupied_lanes]
     if not available_lanes: return []
-    
     if len(available_lanes) >= 2 and random.random() < 0.05:
         lane = random.choice(available_lanes[:-1]) 
         if (lane + 1) in available_lanes: return [(lane, "roadblock")]
-    
     count = 2 if (len(available_lanes) > 1 and random.random() < 0.1) else 1
-    
     chosen = random.sample(available_lanes, count)
     new_obs = []
     for l in chosen:
@@ -458,76 +436,44 @@ def choose_spawn_pattern(obstacles, z_spawn):
 
 # --- MAIN ---
 def main():
-    player = None
-    selected_car_idx = 0
+    player = None; selected_car_idx = 0
+    obstacles = []; buildings = [] 
+    score = 0; alive = True; paused = False; started = False
     
-    obstacles = []
-    buildings = [] 
-    
-    score = 0
-    alive = True
-    paused = False
-    started = False
-    
-    base_speed = 0.0015
-    speed_ramp = 0.0000002
-    speed = base_speed
-    
-    dash_offset = 0.0
-    spawn_progress = 0.0
-    building_spawn_progress = 0.0
-    spawn_threshold = 0.45 
+    base_speed = 0.0015; speed_ramp = 0.0000002; speed = base_speed
+    dash_offset = 0.0; spawn_progress = 0.0; building_spawn_progress = 0.0; spawn_threshold = 0.45 
     
     if os.path.exists(MUSIC_PATH):
         try:
-            pygame.mixer.music.load(MUSIC_PATH)
-            pygame.mixer.music.set_volume(0.5)
-            pygame.mixer.music.play(-1) 
+            pygame.mixer.music.load(MUSIC_PATH); pygame.mixer.music.set_volume(0.5); pygame.mixer.music.play(-1) 
         except: pass
 
     enemy_cycle_i = 0
-
-    # UI Elementen
-    btn_w, btn_h = 240, 60
-    center_x = W // 2 - btn_w // 2
-    
-    # Menu Knoppen Posities
+    btn_w, btn_h = 240, 60; center_x = W // 2 - btn_w // 2
     btn_play = pygame.Rect(center_x, H // 2 + 100, btn_w, btn_h)
     btn_quit_menu = pygame.Rect(center_x, H // 2 + 180, btn_w, btn_h)
     
-    # Auto Selectie Kaartjes
-    car_card_w, car_card_h = 160, 200
-    car_spacing = 40
+    car_card_w, car_card_h = 160, 200; car_spacing = 40
     total_cars_w = (len(PLAYER_CAR_OPTIONS) * car_card_w) + ((len(PLAYER_CAR_OPTIONS)-1) * car_spacing)
     start_x = W // 2 - total_cars_w // 2
-    
     car_rects = []
     for i in range(len(PLAYER_CAR_OPTIONS)):
         r = pygame.Rect(start_x + i * (car_card_w + car_spacing), H // 2 - 150, car_card_w, car_card_h)
         car_rects.append(r)
 
-    # Game Over Knoppen
     btn_restart = pygame.Rect(center_x, H // 2 + 20, btn_w, btn_h)
     btn_quit_over = pygame.Rect(center_x, H // 2 + 100, btn_w, btn_h)
 
     while True:
         dt = clock.tick(60)
-        
         for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                pygame.quit(); sys.exit()
-            
+            if event.type == pygame.QUIT: pygame.quit(); sys.exit()
             if event.type == pygame.MOUSEBUTTONDOWN:
                 if not started:
-                    # Selectie
                     for i, r in enumerate(car_rects):
-                        if r.collidepoint(event.pos):
-                            selected_car_idx = i
-                    
+                        if r.collidepoint(event.pos): selected_car_idx = i
                     if btn_play.collidepoint(event.pos): 
-                        started = True
-                        player = Player(PLAYER_CAR_OPTIONS[selected_car_idx])
-
+                        started = True; player = Player(PLAYER_CAR_OPTIONS[selected_car_idx])
                     if btn_quit_menu.collidepoint(event.pos): pygame.quit(); sys.exit()
                 elif not alive:
                     if btn_restart.collidepoint(event.pos): main()
@@ -539,9 +485,7 @@ def main():
                     if event.key == pygame.K_LEFT: selected_car_idx = max(0, selected_car_idx - 1)
                     if event.key == pygame.K_RIGHT: selected_car_idx = min(len(PLAYER_CAR_OPTIONS)-1, selected_car_idx + 1)
                     if event.key == pygame.K_SPACE or event.key == pygame.K_RETURN: 
-                        started = True
-                        player = Player(PLAYER_CAR_OPTIONS[selected_car_idx])
-
+                        started = True; player = Player(PLAYER_CAR_OPTIONS[selected_car_idx])
                 elif alive:
                     if event.key == pygame.K_ESCAPE: paused = not paused
                     if not paused:
@@ -554,30 +498,24 @@ def main():
         if started and alive and not paused:
             boosting = keys[pygame.K_UP] or keys[pygame.K_w]
             braking = keys[pygame.K_DOWN] or keys[pygame.K_s]
-            
             target_speed = base_speed * 1.5 if boosting else (base_speed * 0.7 if braking else base_speed)
             speed = lerp(speed, target_speed, 0.1)
-            
             if SOUND_ENGINE:
                 if boosting and alive:
                     if SOUND_ENGINE.get_num_channels() == 0: SOUND_ENGINE.play(-1)
                 else: SOUND_ENGINE.stop()
 
             player.update(boosting)
-            
-            score += 1 + int(speed * 1000)
-            base_speed += speed_ramp * dt
+            score += 1 + int(speed * 1000); base_speed += speed_ramp * dt
             
             spawn_progress += speed
             if spawn_progress > spawn_threshold: 
-                spawn_progress = 0
-                z_spawn = Z_SPAWN_MIN
+                spawn_progress = 0; z_spawn = Z_SPAWN_MIN
                 pattern = choose_spawn_pattern(obstacles, z_spawn)
                 for lane, kind in pattern:
                     sprite = None
                     if kind == "car":
-                        sprite = IMG_ENEMIES[enemy_cycle_i]
-                        enemy_cycle_i = (enemy_cycle_i + 1) % len(IMG_ENEMIES)
+                        sprite = IMG_ENEMIES[enemy_cycle_i]; enemy_cycle_i = (enemy_cycle_i + 1) % len(IMG_ENEMIES)
                     obstacles.append(Obstacle(lane, z_spawn, kind, sprite))
 
             building_spawn_progress += speed
@@ -603,70 +541,39 @@ def main():
             dash_offset = (dash_offset + speed * 2.0) % 1.0
 
         if not started:
-            # --- START SCHERM ---
             if IMG_POSTER: screen.blit(IMG_POSTER, (0,0))
             else: screen.fill((0,0,0))
-            
-            # Achtergrond paneel voor de auto selectie (Glassmorphism)
             panel_w, panel_h = 700, 450
             panel_rect = pygame.Rect(W//2 - panel_w//2, H//2 - 200, panel_w, panel_h)
             draw_glass_panel(screen, panel_rect)
-            
-            # Titel tekst
             draw_text_with_outline(screen, "KIES JE AUTO", MENU_TITLE_FONT, WHITE, (W//2, panel_rect.top + 30), center=True)
-            
-            # Teken de auto kaarten
             for i, img in enumerate(PLAYER_CAR_OPTIONS):
                 rect = car_rects[i]
-                
-                # Kaart achtergrond (donkerder)
                 pygame.draw.rect(screen, (0, 0, 0, 150), rect, border_radius=10)
-                
-                # Schaal afbeelding zodat hij in het vakje past
-                # We moeten rekening houden met de aspect ratio
-                iw, ih = img.get_size()
-                aspect = iw / ih
-                target_w = rect.width - 20
-                target_h = int(target_w / aspect)
-                
-                # Als hij te hoog is, schaal op hoogte
-                if target_h > rect.height - 40:
-                    target_h = rect.height - 40
-                    target_w = int(target_h * aspect)
-                
+                iw, ih = img.get_size(); aspect = iw / ih
+                target_w = rect.width - 20; target_h = int(target_w / aspect)
+                if target_h > rect.height - 40: target_h = rect.height - 40; target_w = int(target_h * aspect)
                 menu_car_img = pygame.transform.smoothscale(img, (target_w, target_h))
                 img_rect = menu_car_img.get_rect(center=rect.center)
-                
-                # Teken selectie highlight
                 if i == selected_car_idx:
-                    # Gloed effect
                     glow_rect = rect.inflate(10, 10)
                     pygame.draw.rect(screen, NEON_CYAN, glow_rect, 3, border_radius=12)
-                    # Subtiele achtergrondkleur
                     pygame.draw.rect(screen, (0, 255, 255, 30), rect, border_radius=10)
-                else:
-                    # Normale rand
-                    pygame.draw.rect(screen, (100, 100, 100), rect, 1, border_radius=10)
-
-                # Teken auto
+                else: pygame.draw.rect(screen, (100, 100, 100), rect, 1, border_radius=10)
                 screen.blit(menu_car_img, img_rect.topleft)
-
             draw_button(screen, btn_play, "PLAY")
             draw_button(screen, btn_quit_menu, "QUIT", hover_color=(255, 100, 100), default_color=(200, 50, 50))
 
         else:
-            # --- GAMEPLAY ---
             frame = pygame.Surface((W, H))
             draw_background_and_terrain(frame, dash_offset)
-            buildings.sort(key=lambda b: -b.z)
+            buildings.sort(key=lambda b: -b.z); 
             for b in buildings: b.draw(frame)
             draw_road(frame, dash_offset)
-            obstacles.sort(key=lambda o: -o.z) 
+            obstacles.sort(key=lambda o: -o.z); 
             for obs in obstacles: obs.draw(frame)
             if player: player.draw(frame)
-            
             draw_text_with_outline(frame, f"SCORE: {score}", FONT, WHITE, (20, 20))
-            
             speed_pct = min(1.0, (speed / 0.01))
             bar_w = 200
             pygame.draw.rect(frame, (50,50,50), (20, 60, bar_w, 20), border_radius=5)
@@ -680,13 +587,11 @@ def main():
                 frame.blit(txt, (W//2 - txt.get_width()//2, H//2 - 80))
                 draw_button(frame, btn_restart, "RESTART")
                 draw_button(frame, btn_quit_over, "QUIT", hover_color=(255, 100, 100), default_color=(200, 50, 50))
-            
             elif paused:
                 s = pygame.Surface((W,H), pygame.SRCALPHA); s.fill((0,0,0,150))
                 frame.blit(s, (0,0))
                 txt = BIG_FONT.render("PAUZE", True, WHITE)
                 frame.blit(txt, (W//2 - txt.get_width()//2, H//2))
-
             screen.blit(frame, (0,0))
 
         pygame.display.flip()
