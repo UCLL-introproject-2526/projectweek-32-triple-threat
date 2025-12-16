@@ -55,7 +55,7 @@ MENU_CAR_3 = CAR_DRIVE_3
 PLAYER_MENU_VIEWS = [MENU_CAR_1, MENU_CAR_2, MENU_CAR_3]
 
 # Vijanden
-ENEMY_FILENAMES = ["kart.png", "front_view.png", "sport_car.png", "bmw.png" , "bmw2.png", "porsche2.png", "Bmwm3gtr.png"]
+ENEMY_FILENAMES = ["kart.png", "front_view.png", "sport_car.png", "bmw.png" , "bmw2.png", "front_view_skyline_enemy.png", "Bmwm3gtr.png"]
 IMG_ENEMIES = [pygame.transform.rotate(load_image(f), 0) for f in ENEMY_FILENAMES]
 IMG_FALLBACK_ENEMY = pygame.transform.rotate(load_image("car.png"), 0)
 
