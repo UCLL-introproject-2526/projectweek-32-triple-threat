@@ -1,6 +1,5 @@
 TODO
 
-- [ ] Score vermelden bij doodgaan in menu
 - [ ] Selectie scherm voor- en achterkant auto view
 - [ ] pixelart gebouwen en backgrounds 
 - [ ] soundeffects
@@ -9,3 +8,4 @@ TODO
     - menu geluiden 
     - apart muziekske menu en game
 - [ ] countdown stoplicht
+- [ ] Info tekst (startscherm)
