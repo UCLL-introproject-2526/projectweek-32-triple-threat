@@ -71,7 +71,7 @@ SCALE_CACHE = {}
 
 EXPLOSION_FRAMES = []
 for i in range(1, 11):
-    img = load_image(f"explosion-c{i}.png")
+    img = load_image(f"explosion/explosion-c{i}.png")
     EXPLOSION_FRAMES.append(img)
 
 # --- CONSTANTEN ---
