@@ -7,6 +7,10 @@ TODO
     - auto/optrekken 
     - menu geluiden 
     - apart muziekske menu en game
+<<<<<<< HEAD
 - [X] countdown stoplicht
 - [ ] Info tekst (startscherm)
 - [ ] highscore 
+=======
+- [ ] Info tekst (startscherm)
+>>>>>>> 61c9e69 (stoplicht)
