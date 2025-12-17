@@ -195,7 +195,7 @@ def draw_countdown_lights(surf, stage):
         surf.blit(txt_surf, (txt_rect.x + offset_x, txt_rect.y + offset_y))
         return
 
-    box_w, box_h = 340, 120
+    box_w, box_h = 220, 80
     box_rect = pygame.Rect(0, 0, box_w, box_h)
     box_rect.center = (center_x, center_y)
 
@@ -208,8 +208,8 @@ def draw_countdown_lights(surf, stage):
         for by in [box_rect.top + bolt_offset, box_rect.bottom - bolt_offset]:
             pygame.draw.circle(surf, (100, 100, 100), (bx, by), 3)
 
-    radius = 36
-    spacing = 100
+    radius = 22
+    spacing = 65
     colors = {
         3: {"lit": (255, 20, 20),   "dark": (60, 10, 10),   "glow": (255, 0, 0)},
         2: {"lit": (255, 180, 0),   "dark": (60, 40, 0),    "glow": (255, 140, 0)},
