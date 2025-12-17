@@ -2,6 +2,8 @@ import pygame
 import random
 import sys
 import os
+import glob
+import math # Nodig voor het pulserende effect
 
 # --- PAD CONFIGURATIE ---
 BASE_DIR = os.path.dirname(__file__)
@@ -38,6 +40,7 @@ FONT = pygame.font.SysFont("Arial", 22, bold=True)
 BIG_FONT = pygame.font.SysFont("Arial", 64, bold=True)
 COUNTDOWN_FONT = pygame.font.SysFont("Arial", 120, bold=True)
 BUTTON_FONT = pygame.font.SysFont("Arial", 24, bold=True)
+INFO_FONT = pygame.font.SysFont("Times New Roman", 30, bold=True) # Speciaal font voor de 'i'
 
 # --- ASSETS LADEN ---
 
@@ -48,7 +51,6 @@ CAR_DRIVE_3 = pygame.transform.rotate(load_image("backview_skyline.png"), 0)
 PLAYER_DRIVE_SPRITES = [CAR_DRIVE_1, CAR_DRIVE_2, CAR_DRIVE_3]
 
 # 2. Sprites voor in het MENU (Statische Voorkant)
-# We draaien/flippen ze eenmalig zodat ze 'naar de camera' kijken
 MENU_CAR_1 = CAR_DRIVE_1
 MENU_CAR_2 = CAR_DRIVE_2
 MENU_CAR_3 = CAR_DRIVE_3
@@ -169,49 +171,113 @@ def draw_button(surf, rect, text, is_danger=False):
     surf.blit(text_shadow, (text_rect.x + 1, text_rect.y + 1))
     surf.blit(text_surf, text_rect)
 
+# --- NIEUWE FUNCTIE: STIJLVOLLE INFO KNOP ---
+def draw_tech_info_button(surf, rect, hover):
+    center = rect.center
+    radius = rect.width // 2
+    
+    # Animatie: Pulserend effect (sinusgolf op basis van tijd)
+    time_val = pygame.time.get_ticks() / 500.0  # Snelheid van puls
+    pulse_scale = 1.0 + (math.sin(time_val) * 0.1) if not hover else 1.2
+    
+    # Kleuren
+    base_col = (0, 100, 150)
+    border_col = NEON_CYAN
+    text_col = NEON_CYAN
+    
+    if hover:
+        base_col = (0, 150, 200)
+        border_col = (200, 255, 255)
+        text_col = WHITE
+
+    # 1. Glow effect (achter de knop)
+    glow_surf = pygame.Surface((int(rect.width * 2), int(rect.height * 2)), pygame.SRCALPHA)
+    glow_radius = int(radius * pulse_scale)
+    pygame.draw.circle(glow_surf, (*border_col, 50), (rect.width, rect.height), glow_radius)
+    surf.blit(glow_surf, (center[0] - rect.width, center[1] - rect.height), special_flags=pygame.BLEND_ADD)
+
+    # 2. De Knop zelf
+    pygame.draw.circle(surf, (*base_col, 200), center, radius) # Semi-transparant binnenkant
+    
+    # 3. Rand (dikker als je hovert)
+    thickness = 3 if hover else 2
+    pygame.draw.circle(surf, border_col, center, radius, thickness)
+    
+    # 4. Het "i" symbool
+    txt = INFO_FONT.render("i", True, text_col)
+    txt_rect = txt.get_rect(center=center)
+    # Kleine correctie omdat serif fonts vaak niet perfect verticaal gecentreerd lijken
+    txt_rect.y -= 2 
+    surf.blit(txt, txt_rect)
+
+
+# --- HELP OVERLAY ---
+def draw_help_overlay(surf):
+    overlay = pygame.Surface((W, H), pygame.SRCALPHA)
+    overlay.fill((0, 0, 0, 200))
+    surf.blit(overlay, (0, 0))
+
+    panel_w, panel_h = 600, 420
+    panel_rect = pygame.Rect(W//2 - panel_w//2, H//2 - panel_h//2, panel_w, panel_h)
+    
+    pygame.draw.rect(surf, (30, 35, 45), panel_rect, border_radius=15)
+    pygame.draw.rect(surf, NEON_CYAN, panel_rect, 2, border_radius=15)
+
+    title = BIG_FONT.render("HOW TO PLAY", True, NEON_CYAN)
+    title_rect = title.get_rect(center=(panel_rect.centerx, panel_rect.y + 50))
+    surf.blit(title, title_rect)
+
+    lines = [
+        ("DOEL:", NEON_CYAN),
+        ("Ontwijk het verkeer en de obstakels.", WHITE),
+        ("Hoe sneller je gaat, hoe meer punten!", WHITE),
+        ("", WHITE),
+        ("BESTURING:", NEON_CYAN),
+        ("Pijltjes / WASD  =  Sturen", WHITE),
+        ("Pijl Omhoog / W  =  Boost (Sneller)", WHITE),
+        ("Pijl Omlaag / S  =  Remmen", WHITE),
+        ("", WHITE),
+        ("Klik ergens om te sluiten.", (180, 180, 180))
+    ]
+
+    start_y = panel_rect.y + 110
+    info_font = pygame.font.SysFont("Arial", 24)
+    
+    for i, (text, color) in enumerate(lines):
+        txt = info_font.render(text, True, color)
+        txt_rect = txt.get_rect(center=(panel_rect.centerx, start_y + i * 28))
+        surf.blit(txt, txt_rect)
+
 # --- HORIZONTAAL STOPLICHT ---
 def draw_countdown_lights(surf, stage):
     center_x = W // 2
     center_y = H // 4
     
-    # --- FASE 0: GO! (Trillende tekst zonder achtergrondbol) ---
     if stage == 0:
-        # Het 'shaken' effect terugbrengen
         offset_x = random.randint(-3, 3)
         offset_y = random.randint(-3, 3)
-        
-        txt_surf = COUNTDOWN_FONT.render("GO!", True, NEON_CYAN) # Of WHITE als je wit wilt
-        # Een donkere outline/schaduw voor leesbaarheid
+        txt_surf = COUNTDOWN_FONT.render("GO!", True, NEON_CYAN)
         shadow_surf = COUNTDOWN_FONT.render("GO!", True, (0, 50, 100))
-        
-        # Centreren
         txt_rect = txt_surf.get_rect(center=(center_x, H // 2))
-        
-        # Eerst schaduw tekenen (met tril-offset + kleine verschuiving)
         surf.blit(shadow_surf, (txt_rect.x + offset_x + 4, txt_rect.y + offset_y + 4))
-        # Dan de tekst zelf (met tril-offset)
         surf.blit(txt_surf, (txt_rect.x + offset_x, txt_rect.y + offset_y))
         return
 
-    # --- SETUP STOPLICHT PANEEL ---
-    box_w, box_h = 340, 120
+    box_w, box_h = 220, 80
     box_rect = pygame.Rect(0, 0, box_w, box_h)
     box_rect.center = (center_x, center_y)
 
-    # 1. De Behuizing (Carbon/Metaal look)
     pygame.draw.rect(surf, (20, 22, 25), box_rect, border_radius=20)
     pygame.draw.rect(surf, (160, 170, 180), box_rect, 4, border_radius=20)
     pygame.draw.rect(surf, (10, 10, 10), box_rect.inflate(-6, -6), 2, border_radius=18)
 
-    # Schroefjes
     bolt_offset = 12
     for bx in [box_rect.left + bolt_offset, box_rect.right - bolt_offset]:
         for by in [box_rect.top + bolt_offset, box_rect.bottom - bolt_offset]:
             pygame.draw.circle(surf, (100, 100, 100), (bx, by), 3)
 
-    # --- LAMP LOGICA ---
-    radius = 36
-    spacing = 100
+    radius = 22
+    spacing = 65
     
     colors = {
         3: {"lit": (255, 20, 20),   "dark": (60, 10, 10),   "glow": (255, 0, 0)},     # Rood
@@ -228,32 +294,19 @@ def draw_countdown_lights(surf, stage):
     ]
 
     for x, y in positions:
-        # 2. De Fitting
         pygame.draw.circle(surf, (5, 5, 5), (x, y), radius + 4)
         pygame.draw.circle(surf, (80, 80, 90), (x, y), radius + 4, 2)
 
-        # 3. De Gloed (Glow Effect) - AANGEPAST: Kleiner en zachter
-        # Glow is nu veel kleiner (1.4x radius ipv 2.2x) zodat ze niet zo hard overlappen
         glow_radius = int(radius * 1)
         glow_surf = pygame.Surface((glow_radius * 2, glow_radius * 2), pygame.SRCALPHA)
-        
         glow_rgb = current_set["glow"]
-        # De alpha (laatste getal) is verlaagd naar 30 voor een zachtere rand
         pygame.draw.circle(glow_surf, (*glow_rgb, 30), (glow_radius, glow_radius), glow_radius)
-        # Kern iets feller
         pygame.draw.circle(glow_surf, (*glow_rgb, 60), (glow_radius, glow_radius), int(radius * 0.8))
-        
-        # Glow tekenen met blend mode
         surf.blit(glow_surf, (x - glow_radius, y - glow_radius), special_flags=pygame.BLEND_ADD)
 
-        # 4. De Lamp Zelf
         main_color = current_set["lit"]
         pygame.draw.circle(surf, main_color, (x, y), radius)
-        
-        # Binnenste verloop
         pygame.draw.circle(surf, [min(255, c + 50) for c in main_color], (x, y), int(radius * 0.7))
-
-        # 5. De Reflectie (De 'Shine')
         shine_rect = pygame.Rect(x - radius * 0.5, y - radius * 0.6, radius * 0.4, radius * 0.25)
         pygame.draw.ellipse(surf, (255, 255, 255, 180), shine_rect)
 
@@ -271,7 +324,6 @@ for i in range(50):
     stars.append((random.randint(0, W), random.randint(0, ROAD_FAR_Y)))
 
 def draw_background_and_terrain(surf, t_scroll):
-    # Lucht
     for y in range(H):
         c = int(50 * (y/H))
         col = (10, 5 + c//2, 20 + c)
@@ -281,20 +333,16 @@ def draw_background_and_terrain(surf, t_scroll):
         if random.random() > 0.98: continue 
         pygame.draw.circle(surf, (200, 200, 255), (sx, sy), 1)
 
-    # Skyline
     for i, h in enumerate(skyline_segments):
         x = i * bg_width
         rect_back = pygame.Rect(x, ROAD_FAR_Y - h, bg_width, h + 100)
         pygame.draw.rect(surf, (15, 15, 25), rect_back)
-        
         h2 = skyline_segments[(i + 3) % len(skyline_segments)] * 0.7
         rect_front = pygame.Rect(x, ROAD_FAR_Y - h2, bg_width, h2 + 100)
         pygame.draw.rect(surf, (30, 30, 45), rect_front)
-        
         if i % 4 == 0:
             pygame.draw.rect(surf, (255, 255, 100), (x + 2, ROAD_FAR_Y - h2 + 10, 2, 2))
 
-    # Grond
     bands = 120 
     for i in range(bands):
         t0 = i / bands
@@ -322,7 +370,6 @@ def draw_road(surf, dash_offset=0.0):
                  (near_right, ROAD_NEAR_Y), (near_left, ROAD_NEAR_Y)]
     pygame.draw.polygon(surf, (40, 40, 50), road_poly)
 
-    # Curbs
     num_segments = 24
     for i in range(num_segments):
         t0 = i / num_segments
@@ -573,21 +620,36 @@ def main():
     btn_restart = pygame.Rect(center_x, H // 2 + 40, btn_w, btn_h)
     btn_quit_over = pygame.Rect(center_x, H // 2 + 120, btn_w, btn_h)
 
+    # --- INFO KNOP: RECHTSONDER ---
+    info_btn_radius = 25
+    # Plaatsing: W - marge - diameter, H - marge - diameter
+    btn_info_circle = pygame.Rect(W - 80, H - 80, info_btn_radius * 2, info_btn_radius * 2)
+    show_help = False
+
     while True:
         dt = clock.tick(60)
         for event in pygame.event.get():
             if event.type == pygame.QUIT: pygame.quit(); sys.exit()
             if event.type == pygame.MOUSEBUTTONDOWN:
                 if not started:
-                    for i, r in enumerate(car_rects):
-                        if r.collidepoint(event.pos): selected_car_idx = i
-                    if btn_play.collidepoint(event.pos): 
-                        started = True
-                        counting_down = True
-                        countdown_stage = 3
-                        countdown_timer = 60
-                        player = Player(PLAYER_DRIVE_SPRITES[selected_car_idx])
-                    if btn_quit_menu.collidepoint(event.pos): pygame.quit(); sys.exit()
+                    if show_help:
+                        # Als help open staat, klik ergens om te sluiten
+                        show_help = False
+                    else:
+                        # Als help DICHT is, check of we op het knopje klikken
+                        if btn_info_circle.collidepoint(event.pos):
+                            show_help = True
+                        
+                        elif not show_help:
+                            for i, r in enumerate(car_rects):
+                                if r.collidepoint(event.pos): selected_car_idx = i
+                            if btn_play.collidepoint(event.pos): 
+                                started = True
+                                counting_down = True
+                                countdown_stage = 3
+                                countdown_timer = 60
+                                player = Player(PLAYER_DRIVE_SPRITES[selected_car_idx])
+                            if btn_quit_menu.collidepoint(event.pos): pygame.quit(); sys.exit()
                 elif not alive:
                     if btn_restart.collidepoint(event.pos): main()
                     if btn_quit_over.collidepoint(event.pos): pygame.quit(); sys.exit()
@@ -691,6 +753,17 @@ def main():
                 screen.blit(menu_car_img, img_rect.topleft)
             draw_button(screen, btn_play, "PLAY")
             draw_button(screen, btn_quit_menu, "QUIT", is_danger=True)
+
+            # --- NIEUWE INFO KNOP TEKENEN ---
+            mouse_pos = pygame.mouse.get_pos()
+            hover = btn_info_circle.collidepoint(mouse_pos)
+            
+            draw_tech_info_button(screen, btn_info_circle, hover)
+
+            # --- TEKEN OVERLAY ALS HIJ AAN STAAT ---
+            if show_help:
+                draw_help_overlay(screen)
+
         else:
             frame = pygame.Surface((W, H))
             draw_background_and_terrain(frame, dash_offset)
@@ -701,11 +774,8 @@ def main():
             for obs in obstacles: obs.draw(frame)
             if player: player.draw(frame)
             
-            draw_text_with_outline(frame, f"SCORE: {score}", FONT, WHITE, (20, 20))
-            speed_pct = min(1.0, (speed / 0.01))
-            pygame.draw.rect(frame, (50,50,50), (20, 60, 200, 20), border_radius=5)
-            pygame.draw.rect(frame, NEON_CYAN, (20, 60, int(200 * speed_pct), 20), border_radius=5)
-            draw_text_with_outline(frame, "SPEED", pygame.font.SysFont("Arial", 16), WHITE, (25, 62))
+            # HUD aanroepen
+            draw_hud(frame, score, speed)
 
             if counting_down:
                 draw_countdown_lights(frame, countdown_stage)
@@ -725,6 +795,36 @@ def main():
             screen.blit(frame, (0,0))
 
         pygame.display.flip()
+
+# Vergeet de HUD functie niet, die ik eerder gaf, die moet er ook bij
+# Om de file compleet te maken, plak ik de HUD functie hier ook nog even in:
+def draw_hud(surf, score, speed):
+    padding = 15
+    w, h = 260, 100
+    x, y = 20, 20
+    hud_bg = pygame.Surface((w, h), pygame.SRCALPHA)
+    pygame.draw.rect(hud_bg, (10, 15, 30, 200), hud_bg.get_rect(), border_radius=15)
+    pygame.draw.rect(hud_bg, (0, 100, 200), hud_bg.get_rect(), 2, border_radius=15)
+    surf.blit(hud_bg, (x, y))
+    score_label = FONT.render("SCORE", True, (180, 180, 180))
+    score_val = BIG_FONT.render(f"{score}", True, WHITE)
+    score_val = pygame.transform.smoothscale(score_val, (int(score_val.get_width()*0.6), int(score_val.get_height()*0.6)))
+    surf.blit(score_label, (x + padding, y + padding))
+    surf.blit(score_val, (x + padding, y + padding + 20))
+    bar_x = x + 130
+    bar_y = y + 45
+    bar_w = 110
+    bar_h = 10
+    speed_label = pygame.font.SysFont("Arial", 14, bold=True).render("SPEED", True, NEON_CYAN)
+    surf.blit(speed_label, (bar_x, y + padding + 5))
+    pygame.draw.rect(surf, (40, 40, 50), (bar_x, bar_y, bar_w, bar_h), border_radius=4)
+    speed_pct = min(1.0, (speed / 0.01))
+    fill_w = int(bar_w * speed_pct)
+    if fill_w > 0:
+        c_r = min(255, int(255 * speed_pct))
+        c_g = min(255, int(255 * (1.5 - speed_pct)))
+        bar_col = (c_r, c_g, 0)
+        pygame.draw.rect(surf, bar_col, (bar_x, bar_y, fill_w, bar_h), border_radius=4)
 
 if __name__ == "__main__":
     main()
