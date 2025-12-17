@@ -114,6 +114,12 @@ IMG_ENEMIES = [pygame.transform.rotate(load_image(f), 0) for f in ENEMY_FILENAME
 IMG_FALLBACK_ENEMY = pygame.transform.rotate(load_image("car.png"), 0)
 
 MAG_ICON = load_image("ammo.png")
+ROBOT_FRAMES = []
+for i in range(1, 11):
+    # user: bmw-transformation/bmw_trans_1 ... bmw_trans_10
+    # assume png; if your files are .gif or .jpg, rename or adjust here
+    img = load_image(os.path.join("bmw-transformation", f"bmw_trans_{i}.png"))
+    ROBOT_FRAMES.append(img)
 
 try:
     raw_skyline = load_image("skyline.png")
@@ -162,6 +168,14 @@ Z_SPAWN_MAX = 0.20
 CAR_MAX_HP = 5
 MAG_SIZE = 12
 RELOAD_TIME = 180
+
+# Robot powerup
+ROBOT_KILLS_TO_UNLOCK = 1
+ROBOT_DURATION_FRAMES = 7 * 60     # 7 seconds
+NORMAL_SHOOT_COOLDOWN = 10
+ROBOT_SHOOT_COOLDOWN = 3           # faster gun while robot is active
+ROBOT_ANIM_SPEED = 0.15             # frames per tick (can be fractional)
+
 
 # --- COLORS ---
 NEON_CYAN = (0, 255, 255)
@@ -612,25 +626,38 @@ class Building:
         surf.blit(img, rect.topleft)
 
 class Player:
-    def __init__(self, image):
+    def __init__(self, image, robot_frames):
         self.original_image = image
-        self.lane = 1; 
-        self.target_lane = 1; 
+        self.robot_frames = robot_frames[:] if robot_frames else []
+        self.robot_mode = False
+        self.robot_frame = 0.0
+
+        self.lane = 1
+        self.target_lane = 1
         self.lane_blend = 1.0
-        self.lane_change_speed = 0.10
-        self.z = 0.92; 
-        self.base_w = 80; 
-        self.base_h = 110; 
+        self.lane_change_speed = 0.08
+
+        self.z = 0.92
+        self.base_w = 80
+        self.base_h = 110
         self.angle = 0
         self.particles = []
 
+    def set_robot(self, on: bool):
+        # keep animation running while on (loop)
+        if on and not self.robot_mode:
+            self.robot_frame = 0.0
+        self.robot_mode = bool(on)
+
     def move_left(self):
         if self.lane == self.target_lane and self.target_lane > 0:
-            self.target_lane -= 1; self.lane_blend = 0.0
+            self.target_lane -= 1
+            self.lane_blend = 0.0
 
     def move_right(self):
         if self.lane == self.target_lane and self.target_lane < LANES - 1:
-            self.target_lane += 1; self.lane_blend = 0.0
+            self.target_lane += 1
+            self.lane_blend = 0.0
 
     def update(self, boosting):
         if self.lane != self.target_lane:
@@ -638,9 +665,11 @@ class Player:
             tilt_direction = -1 if self.target_lane < self.lane else 1
             self.angle = lerp(self.angle, tilt_direction * -15, 0.2)
             if self.lane_blend >= 1.0:
-                self.lane = self.target_lane; self.lane_blend = 1.0
+                self.lane = self.target_lane
+                self.lane_blend = 1.0
         else:
-            self.lane_blend = 1.0; self.angle = lerp(self.angle, 0, 0.2)
+            self.lane_blend = 1.0
+            self.angle = lerp(self.angle, 0, 0.2)
 
         if boosting:
             rect = self.get_rect_no_rotate()
@@ -652,6 +681,9 @@ class Player:
             if p.life <= 0:
                 self.particles.remove(p)
 
+        if self.robot_mode and self.robot_frames:
+            self.robot_frame = (self.robot_frame + ROBOT_ANIM_SPEED) % len(self.robot_frames)
+
     def get_rect_no_rotate(self):
         y = y_from_z(self.z)
         if self.lane != self.target_lane:
@@ -660,9 +692,13 @@ class Player:
             x = lerp(x_from, x_to, clamp(self.lane_blend, 0.0, 1.0))
         else:
             x = lane_center_x_at_y(self.lane, y)
+
         scale = lerp(0.35, 1.12, self.z)
-        w = int(self.base_w * scale); h = int(self.base_h * scale)
-        rect = pygame.Rect(0, 0, w, h); rect.centerx = int(x); rect.bottom = int(y)
+        w = int(self.base_w * scale)
+        h = int(self.base_h * scale)
+        rect = pygame.Rect(0, 0, w, h)
+        rect.centerx = int(x)
+        rect.bottom = int(y)
         return rect
 
     def get_rect(self):
@@ -671,8 +707,23 @@ class Player:
     def draw(self, surf):
         for p in self.particles:
             p.draw(surf)
+
         r = self.get_rect_no_rotate()
         draw_shadow(surf, r)
+
+        # Robot mode: draw looping transformation/running frames (NO glow/oval)
+        if self.robot_mode and self.robot_frames:
+            idx = int(self.robot_frame) % len(self.robot_frames)
+            img0 = self.robot_frames[idx]
+            robot_scale = 1.45  # try 1.25–1.70
+            rw = int(r.w * robot_scale)
+            rh = int(r.h * robot_scale)
+            img = scale_cached(img0, (rw, rh), SCALE_CACHE)
+            dst = img.get_rect(midbottom=r.midbottom)
+            surf.blit(img, dst.topleft)
+            return
+
+        # Normal car draw
         img = scale_cached(self.original_image, (r.w, r.h), SCALE_CACHE)
         if abs(self.angle) > 1:
             img = pygame.transform.rotate(img, self.angle)
@@ -680,6 +731,7 @@ class Player:
             surf.blit(img, new_rect.topleft)
         else:
             surf.blit(img, r.topleft)
+
 
 class Obstacle:
     def __init__(self, lane, z, kind="car", sprite=None):
@@ -737,21 +789,34 @@ class Obstacle:
             pygame.draw.rect(surf, (255, 255, 255), mid_rect)
 
 class Bullet:
-    def __init__(self, lane, z):
-        self.lane = lane; self.z = z; self.speed = 0.040; self.radius = 4
-    def update(self): self.z -= self.speed
+    def __init__(self, lane, z, robot=False):
+        self.lane = lane
+        self.z = z
+        self.speed = 0.040
+        self.radius = 4
+        self.robot = robot
+
+    def update(self):
+        self.z -= self.speed
+
     def get_pos(self):
         y = y_from_z(self.z)
         x = lane_center_x_at_y(self.lane, y)
         return int(x), int(y)
+
     def get_rect(self):
         x, y = self.get_pos()
-        r = self.radius
+        r = self.radius + (2 if self.robot else 0)
         return pygame.Rect(x - r, y - r, r * 2, r * 2)
+
     def draw(self, surf):
         x, y = self.get_pos()
-        pygame.draw.circle(surf, NEON_CYAN, (x, y), self.radius)
-        pygame.draw.circle(surf, WHITE, (x, y), self.radius, 1)
+        if self.robot:
+            pygame.draw.circle(surf, (255, 255, 255), (x, y), self.radius + 2)
+            pygame.draw.circle(surf, NEON_CYAN, (x, y), self.radius + 1)
+        else:
+            pygame.draw.circle(surf, NEON_CYAN, (x, y), self.radius)
+            pygame.draw.circle(surf, WHITE, (x, y), self.radius, 1)
 
 class Explosion:
     def __init__(self, x, y, z):
@@ -817,15 +882,19 @@ def draw_boost_warp(surf, intensity, origin=None):
     overlay.set_alpha(int(160 * intensity))
     surf.blit(overlay, (0, 0))
 
-def draw_info_overlay(target_surf, info_alpha, started, alive, paused, counting_down, ammo, reloading):
-    if info_alpha <= 1: return
+def draw_info_overlay(target_surf, info_alpha, started, alive, paused, counting_down, ammo, reloading,
+                      kills, robot_ready, robot_active, robot_timer):
+    if info_alpha <= 1:
+        return
     a = int(info_alpha)
     overlay = pygame.Surface((W, H), pygame.SRCALPHA)
     overlay.fill((0, 0, 0, int(190 * (a / 255.0))))
     target_surf.blit(overlay, (0, 0))
+
     cx = W // 2
     top = H // 2 - 240
     draw_text_with_outline(target_surf, "CONTROLS", BIG_FONT, WHITE, (cx, top), center=True)
+
     y = top + 80
     reload_sec = RELOAD_TIME / 60.0
     lines = [
@@ -843,10 +912,14 @@ def draw_info_overlay(target_surf, info_alpha, started, alive, paused, counting_
         ("Enemy car HP", f"{CAR_MAX_HP} hits"),
         ("Magazine size", f"{MAG_SIZE} shots"),
         ("Reload time", f"{reload_sec:.1f}s"),
+        ("Robot unlock", f"{ROBOT_KILLS_TO_UNLOCK} car kills"),
+        ("Robot duration", f"{ROBOT_DURATION_FRAMES/60:.1f}s"),
     ]
+
     lx = cx - 300
     rx = cx + 60
     key_font = pygame.font.SysFont("Arial", 22, bold=True)
+
     for left, right in lines:
         if left == "" and right == "":
             y += 16
@@ -858,37 +931,70 @@ def draw_info_overlay(target_surf, info_alpha, started, alive, paused, counting_
         draw_text_with_outline(target_surf, left, FONT, WHITE, (lx, y))
         draw_text_with_outline(target_surf, right, key_font, WHITE, (rx, y))
         y += 30
+
     status = []
-    if not started: status.append("Menu")
+    if not started:
+        status.append("Menu")
     else:
-        if counting_down: status.append("Countdown")
-        elif not alive: status.append("Crashed")
-        elif paused: status.append("Paused")
-        else: status.append("Racing")
+        if counting_down:
+            status.append("Countdown")
+        elif not alive:
+            status.append("Crashed")
+        elif paused:
+            status.append("Paused")
+        else:
+            status.append("Racing")
+
+    status.append(f"Kills {kills}/{ROBOT_KILLS_TO_UNLOCK}")
+    if robot_active:
+        status.append(f"ROBOT {robot_timer/60:.1f}s")
+    elif robot_ready:
+        status.append("ROBOT READY")
+    else:
+        status.append("ROBOT locked")
+
     if started and alive and (not counting_down):
-        if reloading: status.append("Reloading…")
-        else: status.append(f"Ammo {ammo}/{MAG_SIZE}")
+        if reloading:
+            status.append("Reloading…")
+        else:
+            status.append(f"Ammo {ammo}/{MAG_SIZE}")
+
     draw_text_with_outline(target_surf, " | ".join(status), SMALL_FONT, (200, 200, 200), (lx, H - 110))
     draw_text_with_outline(target_surf, "Click anywhere or press ESC / I to close", SMALL_FONT, (200, 200, 200), (lx, H - 85))
 
-def draw_ammo_hud(frame, ammo, reloading):
+
+def draw_ammo_hud(frame, ammo, reloading, robot_ready, robot_active, robot_timer, kills):
     hud_x, hud_y = 20, 92
+
+    if robot_active:
+        draw_text_with_outline(frame, f"ROBOT MODE: {robot_timer//60 + 1}s", FONT, NEON_CYAN, (hud_x, hud_y))
+        hud_y += 28
+    elif robot_ready:
+        draw_text_with_outline(frame, "ROBOT READY!", FONT, NEON_CYAN, (hud_x, hud_y))
+        hud_y += 28
+    else:
+        draw_text_with_outline(frame, f"ROBOT: {kills}/{ROBOT_KILLS_TO_UNLOCK}", SMALL_FONT, (200, 200, 200), (hud_x, hud_y))
+        hud_y += 20
+
     if reloading:
         draw_text_with_outline(frame, "RELOADING...", FONT, NEON_RED, (hud_x, hud_y))
         hud_y += 28
+
     icon_h = 38
     icon_w = int(MAG_ICON.get_width() * (icon_h / max(1, MAG_ICON.get_height())))
     mag_icon_s = scale_cached(MAG_ICON, (icon_w, icon_h), SCALE_CACHE)
     frame.blit(mag_icon_s, (hud_x, hud_y))
+
     pip_x = hud_x + icon_w + 12
     pip_y = hud_y + 8
+
     pip_w, pip_h, pip_gap = 10, 20, 4
-    total_w = MAG_SIZE * (pip_w + pip_gap) - pip_gap
-    pygame.draw.rect(frame, (0, 0, 0), (pip_x - 6, pip_y - 6, total_w + 12, pip_h + 12), border_radius=6)
+    # NO BLACK BORDER BOX (user asked to remove it)
     for i in range(MAG_SIZE):
         x = pip_x + i * (pip_w + pip_gap)
         col = NEON_CYAN if i < ammo else (60, 60, 70)
         pygame.draw.rect(frame, col, (x, pip_y, pip_w, pip_h), border_radius=3)
+
 
 # --- MAIN ---
 def main():
@@ -936,6 +1042,13 @@ def main():
     score_saved = False
     high_scores = []
 
+    # robot unlock state
+    kills = 0
+    robot_ready = False
+    robot_active = False
+    robot_timer = 0
+
+
     def toggle_info(open_it=None):
         nonlocal show_info
         if open_it is None: show_info = not show_info
@@ -971,273 +1084,460 @@ def main():
     while True:
         dt = clock.tick(60)
         dt_s = dt / 1000.0
+
+        # fade info overlay
         target = 255.0 if show_info else 0.0
-        if info_alpha < target: info_alpha = min(target, info_alpha + INFO_FADE_SPEED * dt_s)
-        elif info_alpha > target: info_alpha = max(target, info_alpha - INFO_FADE_SPEED * dt_s)
+        if info_alpha < target:
+            info_alpha = min(target, info_alpha + INFO_FADE_SPEED * dt_s)
+        elif info_alpha > target:
+            info_alpha = max(target, info_alpha - INFO_FADE_SPEED * dt_s)
 
         for event in pygame.event.get():
-            if event.type == pygame.QUIT: pygame.quit(); sys.exit()
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+
             if event.type == pygame.MOUSEBUTTONDOWN:
-                if info_alpha > 5: toggle_info(False); continue
-                if btn_info.collidepoint(event.pos): toggle_info(); continue
+                # if info is open, clicking closes it
+                if info_alpha > 5:
+                    toggle_info(False)
+                    continue
+
+                if btn_info.collidepoint(event.pos):
+                    toggle_info()
+                    continue
+
                 if not started:
                     for i, r in enumerate(car_rects):
-                        if r.collidepoint(event.pos): selected_car_idx = i
+                        if r.collidepoint(event.pos):
+                            selected_car_idx = i
+
                     if btn_play.collidepoint(event.pos):
-                        started = True; counting_down = True; countdown_stage = 3; countdown_timer = 60
-                        player = Player(PLAYER_DRIVE_SPRITES[selected_car_idx])
-                        ammo = MAG_SIZE; reloading = False; reload_timer = 0
-                        paused = False; alive = True; score = 0; last_score = 0
-                        score_saved = False # Reset voor nieuwe ronde
-                        bullets.clear(); explosions.clear(); obstacles.clear(); buildings.clear()
-                    if btn_quit_menu.collidepoint(event.pos): pygame.quit(); sys.exit()
+                        started = True
+                        counting_down = True
+                        countdown_stage = 3
+                        countdown_timer = 60
+
+                        player = Player(PLAYER_DRIVE_SPRITES[selected_car_idx], ROBOT_FRAMES)
+                        ammo = MAG_SIZE
+                        reloading = False
+                        reload_timer = 0
+                        shoot_cooldown = 0
+
+                        paused = False
+                        alive = True
+                        score = 0
+                        last_score = 0
+                        bullets.clear()
+                        explosions.clear()
+                        obstacles.clear()
+                        buildings.clear()
+
+                        kills = 0
+                        robot_ready = False
+                        robot_active = False
+                        robot_timer = 0
+
+                    if btn_quit_menu.collidepoint(event.pos):
+                        pygame.quit()
+                        sys.exit()
+
                 elif not alive:
-                    if btn_restart.collidepoint(event.pos): return main()
-                    if btn_quit_over.collidepoint(event.pos): pygame.quit(); sys.exit()
+                    if btn_restart.collidepoint(event.pos):
+                        return main()
+                    if btn_quit_over.collidepoint(event.pos):
+                        pygame.quit()
+                        sys.exit()
+
             if event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_q: pygame.quit(); sys.exit()
-                if event.key == pygame.K_i: toggle_info(); continue
-                if event.key == pygame.K_ESCAPE:
-                    if info_alpha > 5 or show_info: toggle_info(False); continue
-                    if started and alive and (not counting_down): paused = not paused
+                if event.key == pygame.K_q:
+                    pygame.quit()
+                    sys.exit()
+
+                if event.key == pygame.K_i:
+                    toggle_info()
                     continue
+
+                if event.key == pygame.K_ESCAPE:
+                    if info_alpha > 5 or show_info:
+                        toggle_info(False)
+                        continue
+                    if started and alive and (not counting_down):
+                        paused = not paused
+                    continue
+
                 if not started:
-                    if event.key == pygame.K_LEFT: selected_car_idx = max(0, selected_car_idx - 1)
-                    if event.key == pygame.K_RIGHT: selected_car_idx = min(len(PLAYER_MENU_VIEWS)-1, selected_car_idx + 1)
+                    if event.key == pygame.K_LEFT:
+                        selected_car_idx = max(0, selected_car_idx - 1)
+                    if event.key == pygame.K_RIGHT:
+                        selected_car_idx = min(len(PLAYER_MENU_VIEWS) - 1, selected_car_idx + 1)
                     if event.key in (pygame.K_SPACE, pygame.K_RETURN):
-                        started = True; counting_down = True; countdown_stage = 3; countdown_timer = 60
-                        player = Player(PLAYER_DRIVE_SPRITES[selected_car_idx])
-                        ammo = MAG_SIZE; reloading = False; reload_timer = 0
-                        paused = False; alive = True; score = 0; last_score = 0
-                        score_saved = False # Reset voor nieuwe ronde
-                        bullets.clear(); explosions.clear(); obstacles.clear(); buildings.clear()
+                        started = True
+                        counting_down = True
+                        countdown_stage = 3
+                        countdown_timer = 60
+
+                        player = Player(PLAYER_DRIVE_SPRITES[selected_car_idx], ROBOT_FRAMES)
+                        ammo = MAG_SIZE
+                        reloading = False
+                        reload_timer = 0
+                        shoot_cooldown = 0
+
+                        paused = False
+                        alive = True
+                        score = 0
+                        last_score = 0
+                        bullets.clear()
+                        explosions.clear()
+                        obstacles.clear()
+                        buildings.clear()
+
+                        kills = 0
+                        robot_ready = False
+                        robot_active = False
+                        robot_timer = 0
+
                 elif alive and not counting_down:
                     if not paused:
-                        if event.key in (pygame.K_LEFT, pygame.K_a): player.move_left()
-                        if event.key in (pygame.K_RIGHT, pygame.K_d): player.move_right()
+                        if event.key in (pygame.K_LEFT, pygame.K_a):
+                            player.move_left()
+                        if event.key in (pygame.K_RIGHT, pygame.K_d):
+                            player.move_right()
+
                         if event.key == pygame.K_SPACE:
-                            if (not reloading) and ammo > 0 and shoot_cooldown <= 0:
-                                bullets.append(Bullet(player.lane, player.z - 0.08))
-                                shoot_cooldown = 10; ammo -= 1
-                                if ammo <= 0: reloading = True; reload_timer = RELOAD_TIME
+                            if player and getattr(player, "robot_active", False):
+                                pass
+                            else:
+                                if (not reloading) and ammo > 0 and shoot_cooldown <= 0:
+                                    bullets.append(Bullet(player.lane, player.z - 0.08))
+                                    shoot_cooldown = 10
+                                    ammo -= 1
+                                    if ammo <= 0:
+                                        reloading = True
+                                        reload_timer = RELOAD_TIME
+
                 else:
-                    if event.key == pygame.K_r: return main()
+                    if event.key == pygame.K_r:
+                        return main()
 
         keys = pygame.key.get_pressed()
+
+        # update shake
         cam_dx = cam_dy = 0
         if shake_frames > 0:
             cam_dx = random.randint(-shake_strength, shake_strength)
             cam_dy = random.randint(-shake_strength, shake_strength)
             shake_frames -= 1
-            if shake_frames <= 0: shake_strength = 0
-        if shoot_cooldown > 0: shoot_cooldown -= 1
+            if shake_frames <= 0:
+                shake_strength = 0
+
+        if shoot_cooldown > 0:
+            shoot_cooldown -= 1
+
+        # reload update
         if started and alive and (not paused) and (not counting_down):
             if reloading:
                 reload_timer -= 1
-                if reload_timer <= 0: reloading = False; ammo = MAG_SIZE
+                if reload_timer <= 0:
+                    reloading = False
+                    ammo = MAG_SIZE
 
+        # robot timer update
+        if started and alive and (not paused) and (not counting_down):
+            if robot_active:
+                robot_timer -= 1
+                if robot_timer <= 0:
+                    robot_active = False
+                    robot_timer = 0
+
+        # apply robot visual state to player
+        if player:
+            player.set_robot(robot_active)
+
+        # game update
         if started and alive and not paused:
             if counting_down:
                 countdown_timer -= 1
                 if countdown_timer <= 0:
-                    countdown_stage -= 1; countdown_timer = 60
-                    if countdown_stage < 0: counting_down = False
+                    countdown_stage -= 1
+                    countdown_timer = 60
+                    if countdown_stage < 0:
+                        counting_down = False
             else:
                 boosting = keys[pygame.K_UP] or keys[pygame.K_w]
                 braking = keys[pygame.K_DOWN] or keys[pygame.K_s]
                 target_speed = base_speed * 1.5 if boosting else (base_speed * 0.7 if braking else base_speed)
                 speed = lerp(speed, target_speed, 0.1)
+
                 if SOUND_ENGINE:
                     if boosting and alive:
-                        if SOUND_ENGINE.get_num_channels() == 0: SOUND_ENGINE.play(-1)
-                    else: SOUND_ENGINE.stop()
+                        if SOUND_ENGINE.get_num_channels() == 0:
+                            SOUND_ENGINE.play(-1)
+                    else:
+                        SOUND_ENGINE.stop()
+
                 player.update(boosting)
+
                 score += 1 + int(speed * 1000)
                 base_speed += speed_ramp * dt
 
-                # Obstacle Spawning
+                # spawn obstacles
                 spawn_progress += speed
                 if spawn_progress > spawn_threshold:
-                    spawn_progress = 0; z_spawn = Z_SPAWN_MIN
+                    spawn_progress = 0
+                    z_spawn = Z_SPAWN_MIN
                     pattern = choose_spawn_pattern(obstacles, z_spawn)
                     for lane, kind in pattern:
                         sprite = None
                         if kind == "car":
-                            sprite = IMG_ENEMIES[enemy_cycle_i]; enemy_cycle_i = (enemy_cycle_i + 1) % len(IMG_ENEMIES)
+                            sprite = IMG_ENEMIES[enemy_cycle_i]
+                            enemy_cycle_i = (enemy_cycle_i + 1) % len(IMG_ENEMIES)
                         obstacles.append(Obstacle(lane, z_spawn, kind, sprite))
 
-                # Lantern Spawning
+                # lanterns
                 lantern_spawn_progress += speed
                 if lantern_spawn_progress > 0.40:
                     lantern_spawn_progress = 0
                     buildings.append(SideObject(-1, Z_SPAWN_MIN))
                     buildings.append(SideObject(1, Z_SPAWN_MIN))
 
-                # Building Spawning
+                # buildings (layered)
                 building_spawn_progress += speed
-                if building_spawn_progress > 0.12: 
+                if building_spawn_progress > 0.12:
                     building_spawn_progress = 0
+
+                    # front row
                     if random.random() < 0.4:
                         if not any(isinstance(b, Building) and b.layer == 1 and b.side == -1 and abs(b.z - Z_SPAWN_MIN) < 0.2 for b in buildings):
                             buildings.append(Building(-1, Z_SPAWN_MIN, layer=1))
                         if not any(isinstance(b, Building) and b.layer == 1 and b.side == 1 and abs(b.z - Z_SPAWN_MIN) < 0.2 for b in buildings):
                             buildings.append(Building(1, Z_SPAWN_MIN, layer=1))
+
+                    # back row
                     if random.random() < 0.5:
                         if not any(isinstance(b, Building) and b.layer == 2 and b.side == -1 and abs(b.z - Z_SPAWN_MIN) < 0.15 for b in buildings):
                             buildings.append(Building(-1, Z_SPAWN_MIN, layer=2))
                         if not any(isinstance(b, Building) and b.layer == 2 and b.side == 1 and abs(b.z - Z_SPAWN_MIN) < 0.15 for b in buildings):
                             buildings.append(Building(1, Z_SPAWN_MIN, layer=2))
 
+                # update buildings/lanterns
                 p_rect = player.get_rect()
                 for b in buildings[:]:
                     b.update(speed)
-                    if b.z > 1.3: buildings.remove(b)
+                    if b.z > 1.3:
+                        buildings.remove(b)
+
+                # update obstacles + player collision
                 for obs in obstacles[:]:
                     obs.update(speed)
-                    if obs.z > 1.3: obstacles.remove(obs); continue
+                    if obs.z > 1.3:
+                        obstacles.remove(obs)
+                        continue
                     if 0.85 < obs.z < 1.0:
                         o_rect = obs.get_rect()
                         hitbox = o_rect.inflate(-15, -15)
                         if p_rect.colliderect(hitbox):
-                            alive = False; last_score = score
-                            if SOUND_ENGINE: SOUND_ENGINE.stop()
+                            alive = False
+                            last_score = score
+                            if SOUND_ENGINE:
+                                SOUND_ENGINE.stop()
                             explosions.append(Explosion(p_rect.centerx, p_rect.centery, player.z))
                             start_shake(22, 10)
+
+                # update bullets
                 for blt in bullets[:]:
                     blt.update()
-                    if blt.z < 0.02: bullets.remove(blt)
+                    if blt.z < 0.02:
+                        bullets.remove(blt)
+
+                # bullet collisions
                 for blt in bullets[:]:
                     brect = blt.get_rect()
                     hit_any = False
+
                     for obs in obstacles[:]:
                         orect = obs.get_rect()
-                        if not brect.colliderect(orect): continue
+                        if not brect.colliderect(orect):
+                            continue
+
                         hit_any = True
+
                         if obs.kind == "car":
-                            obs.hp -= 1; score += 40
+                            obs.hp -= 1
+                            score += 40
                             if obs.hp <= 0:
+                                # KILL counts towards robot unlock
+                                kills += 1
+
                                 explosions.append(Explosion(orect.centerx, orect.centery, obs.z))
-                                start_shake(12, 7); obstacles.remove(obs); score += 300
+                                start_shake(12, 7)
+                                obstacles.remove(obs)
+                                score += 300
+
+                                # unlock robot after enough kills, then auto-activate
+                                if (not robot_ready) and (kills >= ROBOT_KILLS_TO_UNLOCK) and (not robot_active):
+                                    robot_ready = True
+                                    robot_active = True
+                                    robot_timer = ROBOT_DURATION_FRAMES
+                                    robot_ready = False  # consumed immediately
                         else:
                             explosions.append(Explosion(orect.centerx, orect.centery, obs.z))
-                            start_shake(8, 5); obstacles.remove(obs); score += 100
+                            start_shake(8, 5)
+                            obstacles.remove(obs)
+                            score += 100
+
                         break
-                    if hit_any and blt in bullets: bullets.remove(blt)
+
+                    if hit_any and blt in bullets:
+                        bullets.remove(blt)
+
+                # update explosions
                 for ex in explosions[:]:
                     ex.update()
-                    if ex.done(): explosions.remove(ex)
+                    if ex.done():
+                        explosions.remove(ex)
+
                 dash_offset = (dash_offset + speed * 2.0) % 1.0
+
         else:
+            # animate explosions even when paused/dead/menu
             for ex in explosions[:]:
                 ex.update()
-                if ex.done(): explosions.remove(ex)
+                if ex.done():
+                    explosions.remove(ex)
 
+        # --- RENDER ---
         if not started:
-            if IMG_POSTER: screen.blit(IMG_POSTER, (0, 0))
-            else: screen.fill((0, 0, 0))
+            if IMG_POSTER:
+                screen.blit(IMG_POSTER, (0, 0))
+            else:
+                screen.fill((0, 0, 0))
+
             for i, menu_img in enumerate(PLAYER_MENU_VIEWS):
                 rect = car_rects[i]
                 s = pygame.Surface((rect.width, rect.height), pygame.SRCALPHA)
                 pygame.draw.rect(s, (16, 24, 48, 230), s.get_rect(), border_radius=10)
                 screen.blit(s, rect.topleft)
-                g = pygame.Surface((rect.width, rect.height // 2), pygame.SRCALPHA)
-                pygame.draw.rect(g, (255, 255, 255, 15), g.get_rect(), border_top_left_radius=10, border_top_right_radius=10)
-                screen.blit(g, rect.topleft)
-                iw, ih = menu_img.get_size(); aspect = iw / ih
-                target_w = rect.width - 20; target_h = int(target_w / aspect)
-                if target_h > rect.height - 40: target_h = rect.height - 40; target_w = int(target_h * aspect)
+
+                iw, ih = menu_img.get_size()
+                aspect = iw / ih
+                target_w = rect.width - 20
+                target_h = int(target_w / aspect)
+                if target_h > rect.height - 40:
+                    target_h = rect.height - 40
+                    target_w = int(target_h * aspect)
                 menu_car_img = pygame.transform.smoothscale(menu_img, (target_w, target_h))
                 img_rect = menu_car_img.get_rect(center=rect.center)
+
                 if i == selected_car_idx:
                     glow_rect = rect.inflate(10, 10)
                     pygame.draw.rect(screen, NEON_CYAN, glow_rect, 3, border_radius=12)
-                    s_glow = pygame.Surface((rect.width, rect.height), pygame.SRCALPHA)
-                    pygame.draw.rect(s_glow, (0, 255, 255, 30), s_glow.get_rect(), border_radius=10)
-                    screen.blit(s_glow, rect.topleft)
-                else: pygame.draw.rect(screen, (60, 70, 90), rect, 2, border_radius=10)
+                else:
+                    pygame.draw.rect(screen, (60, 70, 90), rect, 2, border_radius=10)
+
                 screen.blit(menu_car_img, img_rect.topleft)
+
             draw_button(screen, btn_play, "PLAY")
             draw_button(screen, btn_quit_menu, "QUIT", is_danger=True)
-            draw_tech_info_button(screen, btn_info, info_alpha >= 5) # Updated info button
-            draw_info_overlay(screen, info_alpha, started, alive, paused, counting_down, ammo, reloading)
-            pygame.display.flip(); continue
+            draw_button(screen, btn_info, "i" if info_alpha < 5 else "X", is_danger=(info_alpha >= 5))
+
+            draw_info_overlay(
+                screen, info_alpha, started, alive, paused, counting_down,
+                ammo, reloading, kills, robot_ready, robot_active, robot_timer
+            )
+
+            pygame.display.flip()
+            continue
 
         frame = pygame.Surface((W, H))
         draw_background_and_terrain(frame, dash_offset)
-        
+
         buildings.sort(key=lambda b: b.z)
-        for b in buildings: b.draw(frame)
+        for b in buildings:
+            b.draw(frame)
 
         draw_road(frame, dash_offset)
+
         obstacles.sort(key=lambda o: -o.z)
-        for obs in obstacles: obs.draw(frame)
-        for blt in bullets: blt.draw(frame)
-        if player: player.draw(frame)
-        for ex in explosions: ex.draw(frame)
+        for obs in obstacles:
+            obs.draw(frame)
+
+        for blt in bullets:
+            blt.draw(frame)
+
+        if player:
+            player.draw(frame)
+
+        for ex in explosions:
+            ex.draw(frame)
+
+        # HUD
         draw_text_with_outline(frame, f"SCORE: {score}", FONT, WHITE, (20, 20))
         speed_pct = min(1.0, (speed / 0.01))
         pygame.draw.rect(frame, (50, 50, 50), (20, 60, 200, 20), border_radius=5)
         pygame.draw.rect(frame, NEON_CYAN, (20, 60, int(200 * speed_pct), 20), border_radius=5)
         draw_text_with_outline(frame, "SPEED", SMALL_FONT, WHITE, (25, 62))
-        if started: draw_ammo_hud(frame, ammo, reloading)
-        if counting_down: draw_countdown_lights(frame, countdown_stage)
-        
+
+        draw_ammo_hud(frame, ammo, reloading, robot_ready, robot_active, robot_timer, kills)
+
+        if counting_down:
+            draw_countdown_lights(frame, countdown_stage)
+
         if not alive:
             s = pygame.Surface((W, H), pygame.SRCALPHA)
             s.fill((50, 0, 0, 200))
             frame.blit(s, (0, 0))
-            
-            # --- LEADERBOARD LOGICA ---
-            if not score_saved:
-                high_scores = save_new_score(last_score)
-                score_saved = True
-            
-            # Teksten en layout
             txt = BIG_FONT.render("CRASHED!", True, (255, 50, 50))
-            frame.blit(txt, (W//2 - txt.get_width()//2, H//2 - 220))
-            
+            frame.blit(txt, (W // 2 - txt.get_width() // 2, H // 2 - 120))
             score_txt = FONT.render(f"YOUR SCORE: {last_score}", True, WHITE)
-            frame.blit(score_txt, (W//2 - score_txt.get_width()//2, H//2 - 150))
-            
-            # LEADERBOARD TEKENEN
-            draw_leaderboard_panel(frame, high_scores, W//2, H//2 - 100)
-            
-            # Knoppen verplaatst
-            btn_restart.y = H//2 + 90
-            btn_quit_over.y = H//2 + 150
+            frame.blit(score_txt, (W // 2 - score_txt.get_width() // 2, H // 2 - 30))
             draw_button(frame, btn_restart, "RESTART")
             draw_button(frame, btn_quit_over, "QUIT", is_danger=True)
-            
+
         elif paused:
             s = pygame.Surface((W, H), pygame.SRCALPHA)
             s.fill((0, 0, 0, 150))
             frame.blit(s, (0, 0))
             txt = BIG_FONT.render("PAUZE", True, WHITE)
-            frame.blit(txt, (W//2 - txt.get_width()//2, H//2))
-        draw_tech_info_button(screen, btn_info, info_alpha >= 5)
-        draw_info_overlay(frame, info_alpha, started, alive, paused, counting_down, ammo, reloading)
+            frame.blit(txt, (W // 2 - txt.get_width() // 2, H // 2))
 
+        draw_button(frame, btn_info, "i" if info_alpha < 5 else "X", is_danger=(info_alpha >= 5))
+        draw_info_overlay(
+            frame, info_alpha, started, alive, paused, counting_down,
+            ammo, reloading, kills, robot_ready, robot_active, robot_timer
+        )
+
+        # boost visual effect
         car_origin = None
         if player:
             pr = player.get_rect()
             car_origin = (pr.centerx, pr.centery - int(pr.h * 0.25))
+
         boosting_now = False
         if started and alive and (not paused) and (not counting_down) and (info_alpha <= 5):
             boosting_now = (keys[pygame.K_UP] or keys[pygame.K_w])
+
         final_frame = frame
+
         if boosting_now:
-            speed_pct = min(1.0, (speed / 0.01))
-            boost_intensity = clamp(speed_pct, 0.0, 1.0)
+            boost_intensity = clamp(min(1.0, (speed / 0.01)), 0.0, 1.0)
+
             ghost = frame.copy()
             ghost.blit(frame, (0, 6))
             ghost.set_alpha(int(60 + 90 * boost_intensity))
             frame.blit(ghost, (0, 0))
-            if car_origin: draw_boost_warp(frame, boost_intensity, origin=car_origin)
+
+            if car_origin:
+                draw_boost_warp(frame, boost_intensity, origin=car_origin)
+
             zoom = 1.0 + (0.06 * boost_intensity)
-            zoom_w = int(W * zoom); zoom_h = int(H * zoom)
-            zoomed = pygame.transform.scale(frame, (zoom_w, zoom_h)) # SCALE GEBRUIKEN (MAC FIX)
-            crop_x = (zoom_w - W) // 2; crop_y = (zoom_h - H) // 2
+            zoom_w = int(W * zoom)
+            zoom_h = int(H * zoom)
+            zoomed = pygame.transform.smoothscale(frame, (zoom_w, zoom_h))
+            crop_x = (zoom_w - W) // 2
+            crop_y = (zoom_h - H) // 2
             final_frame = zoomed.subsurface((crop_x, crop_y, W, H))
+
         screen.fill((0, 0, 0))
         screen.blit(final_frame, (cam_dx, cam_dy))
         pygame.display.flip()
