@@ -42,7 +42,7 @@ BUTTON_FONT = pygame.font.SysFont("Arial", 24, bold=True)
 # --- ASSETS LADEN ---
 
 # 1. Sprites voor tijdens het RIJDEN (Achterkant / Bovenkant)
-CAR_DRIVE_1 = pygame.transform.rotate(load_image("race-car.png"), 90)
+CAR_DRIVE_1 = pygame.transform.rotate(load_image("retro_porsche.png"), 0)
 CAR_DRIVE_2 = pygame.transform.rotate(load_image("backviewbmwm3.png"), 0) 
 CAR_DRIVE_3 = pygame.transform.rotate(load_image("backview_skyline.png"), 0)
 PLAYER_DRIVE_SPRITES = [CAR_DRIVE_1, CAR_DRIVE_2, CAR_DRIVE_3]
