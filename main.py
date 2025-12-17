@@ -627,6 +627,63 @@ def choose_spawn_pattern(obstacles, z_spawn):
         new_obs.append((l, kind))
     return new_obs
 
+def draw_boost_warp(surf, intensity, origin=None):
+    """
+    Softer radial 'warp' streaks. intensity 0..1.
+    Call ONLY while boosting.
+    """
+    if intensity <= 0:
+        return
+
+    w, h = surf.get_size()
+    if origin is None:
+        origin = (w // 2, h // 2)
+    ox, oy = origin
+
+    overlay = pygame.Surface((w, h), pygame.SRCALPHA)
+
+    # MUCH fewer lines
+    n = int(10 + 22 * intensity)
+
+    # shorter + softer
+    max_len = int(140 + 220 * intensity)
+    base_alpha = int(18 + 55 * intensity)
+
+    for _ in range(n):
+        ang = random.uniform(-2.6, 2.6)
+
+        # start further away from origin so the car stays clean
+        start_r = random.uniform(70, 160)
+        vx, vy = pygame.math.Vector2(1, 0).rotate_rad(ang)
+
+        x0 = ox + int(start_r * 1.15 * vx)
+        y0 = oy + int(start_r * 0.95 * vy)
+
+        end_r = start_r + random.uniform(max_len * 0.45, max_len)
+        x1 = ox + int(end_r * 1.20 * vx)
+        y1 = oy + int(end_r * 1.00 * vy)
+
+        # clamp
+        x0 = clamp(x0, -80, w + 80); y0 = clamp(y0, -80, h + 80)
+        x1 = clamp(x1, -80, w + 80); y1 = clamp(y1, -80, h + 80)
+
+        # thin lines; occasional thicker one
+        thick = 1 if random.random() < 0.85 else 2
+
+        # fade a bit by distance from origin (softer near the start)
+        dist = max(1, ((x0 - ox) ** 2 + (y0 - oy) ** 2) ** 0.5)
+        fade = clamp(dist / 260.0, 0.25, 1.0)
+        a = int(base_alpha * fade)
+
+        # soft cyan-white (not harsh pure white)
+        col = (200, 255, 255, a)
+        pygame.draw.line(overlay, col, (x0, y0), (x1, y1), thick)
+
+    # small global transparency to prevent “harshness”
+    overlay.set_alpha(int(160 * intensity))
+    surf.blit(overlay, (0, 0))
+
+
 # --- MAIN ---
 def main():
     bullets = []
@@ -1016,10 +1073,54 @@ def main():
             txt = BIG_FONT.render("PAUZE", True, WHITE)
             frame.blit(txt, (W//2 - txt.get_width()//2, H//2))
 
-        # apply screen shake by blitting frame with offset
+        # --- BOOST EFFECT (ONLY while accelerating) ---
+        # get car center for boost effects
+        car_origin = None
+        if player:
+            pr = player.get_rect()
+            car_origin = (pr.centerx, pr.centery - int(pr.h * 0.25))
+
+        keys = pygame.key.get_pressed()
+
+        boosting_now = False
+        if started and alive and (not paused) and (not counting_down):
+            boosting_now = (keys[pygame.K_UP] or keys[pygame.K_w])
+
+# default: no zoom / no warp
+        final_frame = frame
+
+        if boosting_now:
+            # intensity based on speed (only matters while boosting)
+            speed_pct = min(1.0, (speed / 0.01))
+            boost_intensity = clamp(speed_pct, 0.0, 1.0)
+
+            # 1) subtle motion-blur "ghost" (cheap and effective)
+            ghost = frame.copy()
+            # shift downward a tiny bit (directional feel)
+            ghost.blit(frame, (0, 6))
+            ghost.set_alpha(int(60 + 90 * boost_intensity))
+            frame.blit(ghost, (0, 0))
+
+            # 2) radial warp streaks from horizon/center
+            # draw_boost_warp(frame, boost_intensity, origin=(W // 2, int(H * 0.28)))
+            if car_origin:
+                draw_boost_warp(frame, boost_intensity, origin=car_origin)
+
+
+            # 3) camera punch-in
+            zoom = 1.0 + (0.06 * boost_intensity)  # up to +6%
+            zoom_w = int(W * zoom)
+            zoom_h = int(H * zoom)
+            zoomed = pygame.transform.smoothscale(frame, (zoom_w, zoom_h))
+            crop_x = (zoom_w - W) // 2
+            crop_y = (zoom_h - H) // 2
+            final_frame = zoomed.subsurface((crop_x, crop_y, W, H))
+
+# apply shake on the final blit
         screen.fill((0, 0, 0))
-        screen.blit(frame, (cam_dx, cam_dy))
+        screen.blit(final_frame, (cam_dx, cam_dy))
         pygame.display.flip()
+
 
 if __name__ == "__main__":
     main()
