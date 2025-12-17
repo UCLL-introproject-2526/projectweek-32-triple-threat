@@ -10,3 +10,4 @@ TODO
 - [X] countdown stoplicht
 - [ ] Info tekst (startscherm)
 - [ ] highscore 
+- [ ] boost veranderen
