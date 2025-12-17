@@ -207,10 +207,13 @@ def lane_center_x_at_y(lane_idx, y):
     return left + lane_w * (lane_idx + 0.5)
 
 def scale_cached(img, size, cache):
+    if len(cache) > 2000:
+        cache.clear()
+
     w, h = max(1, int(size[0])), max(1, int(size[1]))
     key = (id(img), w, h)
     if key not in cache:
-        cache[key] = pygame.transform.scale(img, (w, h)) 
+        cache[key] = pygame.transform.scale(img, (w, h))
     return cache[key]
 
 def draw_text_with_outline(surf, text, font, color, pos, center=False):
@@ -611,9 +614,14 @@ class Building:
 class Player:
     def __init__(self, image):
         self.original_image = image
-        self.lane = 1; self.target_lane = 1; self.lane_blend = 1.0
-        self.lane_change_speed = 0.08
-        self.z = 0.92; self.base_w = 80; self.base_h = 110; self.angle = 0
+        self.lane = 1; 
+        self.target_lane = 1; 
+        self.lane_blend = 1.0
+        self.lane_change_speed = 0.10
+        self.z = 0.92; 
+        self.base_w = 80; 
+        self.base_h = 110; 
+        self.angle = 0
         self.particles = []
 
     def move_left(self):
