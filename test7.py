@@ -194,34 +194,50 @@ def draw_countdown_lights(surf, stage):
     center_y = box_rect.centery
     spacing = 80
     
-    pos_red = (box_rect.centerx - spacing, center_y)
-    pos_orange = (box_rect.centerx, center_y)
-    pos_green = (box_rect.centerx + spacing, center_y)
+    # De posities van de drie lampen
+    pos_left = (box_rect.centerx - spacing, center_y)
+    pos_mid = (box_rect.centerx, center_y)
+    pos_right = (box_rect.centerx + spacing, center_y)
     
-    # Kleuren: Kies FEL als actief, of DONKER als inactief
-    c_red = (255, 0, 0) if stage == 3 else (60, 0, 0)
-    c_orange = (255, 180, 0) if stage == 2 else (60, 40, 0)
-    c_green = (0, 255, 0) if stage == 1 else (0, 60, 0)
+    # --- AANPASSING START ---
+    # We bepalen de kleur voor ALLE lampen tegelijk op basis van de stage.
     
-    pygame.draw.circle(surf, c_red, pos_red, radius)
-    pygame.draw.circle(surf, c_orange, pos_orange, radius)
-    pygame.draw.circle(surf, c_green, pos_green, radius)
-    
-    pygame.draw.circle(surf, (0,0,0), pos_red, radius, 2)
-    pygame.draw.circle(surf, (0,0,0), pos_orange, radius, 2)
-    pygame.draw.circle(surf, (0,0,0), pos_green, radius, 2)
-    
-    # GLOW EFFECT
-    glow_surf = pygame.Surface((radius*4, radius*4), pygame.SRCALPHA)
+    # Standaard (uit/donker)
+    active_color = (40, 40, 40)
+    glow_color = None
+
     if stage == 3:
-        pygame.draw.circle(glow_surf, (255, 0, 0, 80), (radius*2, radius*2), radius*1.5)
-        surf.blit(glow_surf, (pos_red[0]-radius*2, pos_red[1]-radius*2))
+        # Alles ROOD
+        active_color = (255, 0, 0)
+        glow_color = (255, 0, 0, 80)
     elif stage == 2:
-        pygame.draw.circle(glow_surf, (255, 180, 0, 80), (radius*2, radius*2), radius*1.5)
-        surf.blit(glow_surf, (pos_orange[0]-radius*2, pos_orange[1]-radius*2))
+        # Alles ORANJE
+        active_color = (255, 180, 0)
+        glow_color = (255, 180, 0, 80)
     elif stage == 1:
-        pygame.draw.circle(glow_surf, (0, 255, 0, 80), (radius*2, radius*2), radius*1.5)
-        surf.blit(glow_surf, (pos_green[0]-radius*2, pos_green[1]-radius*2))
+        # Alles GROEN
+        active_color = (0, 255, 0)
+        glow_color = (0, 255, 0, 80)
+
+    # Teken de 3 lampen in de huidige actieve kleur
+    pygame.draw.circle(surf, active_color, pos_left, radius)
+    pygame.draw.circle(surf, active_color, pos_mid, radius)
+    pygame.draw.circle(surf, active_color, pos_right, radius)
+    
+    # Teken de zwarte randjes om de lampen
+    pygame.draw.circle(surf, (0,0,0), pos_left, radius, 2)
+    pygame.draw.circle(surf, (0,0,0), pos_mid, radius, 2)
+    pygame.draw.circle(surf, (0,0,0), pos_right, radius, 2)
+    
+    # GLOW EFFECT (over alle drie de lampen heen)
+    if glow_color:
+        glow_surf = pygame.Surface((radius*4, radius*4), pygame.SRCALPHA)
+        pygame.draw.circle(glow_surf, glow_color, (radius*2, radius*2), radius*1.5)
+        
+        surf.blit(glow_surf, (pos_left[0]-radius*2, pos_left[1]-radius*2))
+        surf.blit(glow_surf, (pos_mid[0]-radius*2, pos_mid[1]-radius*2))
+        surf.blit(glow_surf, (pos_right[0]-radius*2, pos_right[1]-radius*2))
+    # --- AANPASSING EIND ---
 
 
 # --- SKYLINE GENERATIE ---
