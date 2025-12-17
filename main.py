@@ -868,6 +868,7 @@ def main():
     speed = base_speed
     dash_offset = 0.0
     spawn_progress = 0.0
+    lantern_spawn_progress = 0.0
     
     # New Spawn logic vars
     building_spawn_progress = 0.0
@@ -1010,25 +1011,27 @@ def main():
                         obstacles.append(Obstacle(lane, z_spawn, kind, sprite))
 
                 # Building & Lantern Spawning (Layered Logic)
+                # 1. Lanterns (Fixed interval, less frequent, symmetrical)
+                lantern_spawn_progress += speed
+                if lantern_spawn_progress > 0.40: # Adjusted to 0.40 so they appear less often
+                    lantern_spawn_progress = 0
+                    # Spawn both sides at once for a clean "avenue" look
+                    buildings.append(SideObject(-1, Z_SPAWN_MIN))
+                    buildings.append(SideObject(1, Z_SPAWN_MIN))
+
+                # 2. Buildings (Randomized background)
                 building_spawn_progress += speed
-                if building_spawn_progress > 0.10: 
+                if building_spawn_progress > 0.12: 
                     building_spawn_progress = 0
                     
-                    # 1. Lanterns
-                    if random.random() < 0.6:
-                         if not any(isinstance(b, SideObject) and b.side == -1 and abs(b.z - Z_SPAWN_MIN) < 0.1 for b in buildings):
-                             buildings.append(SideObject(-1, Z_SPAWN_MIN))
-                         if not any(isinstance(b, SideObject) and b.side == 1 and abs(b.z - Z_SPAWN_MIN) < 0.1 for b in buildings):
-                             buildings.append(SideObject(1, Z_SPAWN_MIN))
-
-                    # 2. Front Buildings (Layer 1)
+                    # Front Buildings (Layer 1)
                     if random.random() < 0.4:
                         if not any(isinstance(b, Building) and b.layer == 1 and b.side == -1 and abs(b.z - Z_SPAWN_MIN) < 0.2 for b in buildings):
                             buildings.append(Building(-1, Z_SPAWN_MIN, layer=1))
                         if not any(isinstance(b, Building) and b.layer == 1 and b.side == 1 and abs(b.z - Z_SPAWN_MIN) < 0.2 for b in buildings):
                             buildings.append(Building(1, Z_SPAWN_MIN, layer=1))
                             
-                    # 3. Back Buildings (Layer 2)
+                    # Back Buildings (Layer 2)
                     if random.random() < 0.5:
                         if not any(isinstance(b, Building) and b.layer == 2 and b.side == -1 and abs(b.z - Z_SPAWN_MIN) < 0.15 for b in buildings):
                             buildings.append(Building(-1, Z_SPAWN_MIN, layer=2))
