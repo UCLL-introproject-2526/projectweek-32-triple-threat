@@ -38,6 +38,7 @@ FONT = pygame.font.SysFont("Arial", 22, bold=True)
 BIG_FONT = pygame.font.SysFont("Arial", 64, bold=True)
 COUNTDOWN_FONT = pygame.font.SysFont("Arial", 120, bold=True)
 BUTTON_FONT = pygame.font.SysFont("Arial", 24, bold=True)
+SMALL_FONT = pygame.font.SysFont("Arial", 16, bold=True)
 
 # --- ASSETS LADEN ---
 CAR_DRIVE_1 = pygame.transform.rotate(load_image("retro_porsche.png"), 0)
@@ -53,6 +54,9 @@ PLAYER_MENU_VIEWS = [MENU_CAR_1, MENU_CAR_2, MENU_CAR_3]
 ENEMY_FILENAMES = ["kart.png", "front_view.png", "sport_car.png", "bmw.png", "bmw2.png", "front_view_skyline_enemy.png", "Bmwm3gtr.png"]
 IMG_ENEMIES = [pygame.transform.rotate(load_image(f), 0) for f in ENEMY_FILENAMES]
 IMG_FALLBACK_ENEMY = pygame.transform.rotate(load_image("car.png"), 0)
+
+# optional mag icon for ammo HUD
+MAG_ICON = load_image("ammo.png")
 
 try:
     poster_path = os.path.join(ASSETS_DIR, "poster.jpg")
@@ -89,7 +93,7 @@ CAR_MAX_HP = 5
 
 # ammo
 MAG_SIZE = 12
-RELOAD_TIME = 180  # frames (~1.25s @ 60fps)
+RELOAD_TIME = 180  # frames (~3.0s @ 60fps)
 
 # KLEUREN
 NEON_CYAN = (0, 255, 255)
@@ -180,54 +184,39 @@ def draw_button(surf, rect, text, is_danger=False):
 def draw_countdown_lights(surf, stage):
     center_x = W // 2
     center_y = H // 4
-    
-    # --- FASE 0: GO! (Trillende tekst zonder achtergrondbol) ---
+
     if stage == 0:
-        # Het 'shaken' effect terugbrengen
         offset_x = random.randint(-3, 3)
         offset_y = random.randint(-3, 3)
-        
-        txt_surf = COUNTDOWN_FONT.render("GO!", True, NEON_CYAN) # Of WHITE als je wit wilt
-        # Een donkere outline/schaduw voor leesbaarheid
+        txt_surf = COUNTDOWN_FONT.render("GO!", True, NEON_CYAN)
         shadow_surf = COUNTDOWN_FONT.render("GO!", True, (0, 50, 100))
-        
-        # Centreren
         txt_rect = txt_surf.get_rect(center=(center_x, H // 2))
-        
-        # Eerst schaduw tekenen (met tril-offset + kleine verschuiving)
         surf.blit(shadow_surf, (txt_rect.x + offset_x + 4, txt_rect.y + offset_y + 4))
-        # Dan de tekst zelf (met tril-offset)
         surf.blit(txt_surf, (txt_rect.x + offset_x, txt_rect.y + offset_y))
         return
 
-    # --- SETUP STOPLICHT PANEEL ---
     box_w, box_h = 340, 120
     box_rect = pygame.Rect(0, 0, box_w, box_h)
     box_rect.center = (center_x, center_y)
 
-    # 1. De Behuizing (Carbon/Metaal look)
     pygame.draw.rect(surf, (20, 22, 25), box_rect, border_radius=20)
     pygame.draw.rect(surf, (160, 170, 180), box_rect, 4, border_radius=20)
     pygame.draw.rect(surf, (10, 10, 10), box_rect.inflate(-6, -6), 2, border_radius=18)
 
-    # Schroefjes
     bolt_offset = 12
     for bx in [box_rect.left + bolt_offset, box_rect.right - bolt_offset]:
         for by in [box_rect.top + bolt_offset, box_rect.bottom - bolt_offset]:
             pygame.draw.circle(surf, (100, 100, 100), (bx, by), 3)
 
-    # --- LAMP LOGICA ---
     radius = 36
     spacing = 100
-    
     colors = {
-        3: {"lit": (255, 20, 20),   "dark": (60, 10, 10),   "glow": (255, 0, 0)},     # Rood
-        2: {"lit": (255, 180, 0),   "dark": (60, 40, 0),    "glow": (255, 140, 0)},   # Oranje
-        1: {"lit": (0, 255, 80),    "dark": (0, 60, 20),    "glow": (0, 255, 0)}      # Groen
+        3: {"lit": (255, 20, 20),   "dark": (60, 10, 10),   "glow": (255, 0, 0)},
+        2: {"lit": (255, 180, 0),   "dark": (60, 40, 0),    "glow": (255, 140, 0)},
+        1: {"lit": (0, 255, 80),    "dark": (0, 60, 20),    "glow": (0, 255, 0)}
     }
-    
     current_set = colors.get(stage, colors[3])
-    
+
     positions = [
         (center_x - spacing, center_y),
         (center_x, center_y),
@@ -235,32 +224,20 @@ def draw_countdown_lights(surf, stage):
     ]
 
     for x, y in positions:
-        # 2. De Fitting
         pygame.draw.circle(surf, (5, 5, 5), (x, y), radius + 4)
         pygame.draw.circle(surf, (80, 80, 90), (x, y), radius + 4, 2)
 
-        # 3. De Gloed (Glow Effect) - AANGEPAST: Kleiner en zachter
-        # Glow is nu veel kleiner (1.4x radius ipv 2.2x) zodat ze niet zo hard overlappen
         glow_radius = int(radius * 1)
         glow_surf = pygame.Surface((glow_radius * 2, glow_radius * 2), pygame.SRCALPHA)
-        
         glow_rgb = current_set["glow"]
-        # De alpha (laatste getal) is verlaagd naar 30 voor een zachtere rand
         pygame.draw.circle(glow_surf, (*glow_rgb, 30), (glow_radius, glow_radius), glow_radius)
-        # Kern iets feller
         pygame.draw.circle(glow_surf, (*glow_rgb, 60), (glow_radius, glow_radius), int(radius * 0.8))
-        
-        # Glow tekenen met blend mode
         surf.blit(glow_surf, (x - glow_radius, y - glow_radius), special_flags=pygame.BLEND_ADD)
 
-        # 4. De Lamp Zelf
         main_color = current_set["lit"]
         pygame.draw.circle(surf, main_color, (x, y), radius)
-        
-        # Binnenste verloop
         pygame.draw.circle(surf, [min(255, c + 50) for c in main_color], (x, y), int(radius * 0.7))
 
-        # 5. De Reflectie (De 'Shine')
         shine_rect = pygame.Rect(x - radius * 0.5, y - radius * 0.6, radius * 0.4, radius * 0.25)
         pygame.draw.ellipse(surf, (255, 255, 255, 180), shine_rect)
 
@@ -628,61 +605,150 @@ def choose_spawn_pattern(obstacles, z_spawn):
     return new_obs
 
 def draw_boost_warp(surf, intensity, origin=None):
-    """
-    Softer radial 'warp' streaks. intensity 0..1.
-    Call ONLY while boosting.
-    """
     if intensity <= 0:
         return
-
     w, h = surf.get_size()
     if origin is None:
         origin = (w // 2, h // 2)
     ox, oy = origin
-
     overlay = pygame.Surface((w, h), pygame.SRCALPHA)
-
-    # MUCH fewer lines
     n = int(10 + 22 * intensity)
-
-    # shorter + softer
     max_len = int(140 + 220 * intensity)
     base_alpha = int(18 + 55 * intensity)
-
     for _ in range(n):
         ang = random.uniform(-2.6, 2.6)
-
-        # start further away from origin so the car stays clean
         start_r = random.uniform(70, 160)
         vx, vy = pygame.math.Vector2(1, 0).rotate_rad(ang)
-
         x0 = ox + int(start_r * 1.15 * vx)
         y0 = oy + int(start_r * 0.95 * vy)
-
         end_r = start_r + random.uniform(max_len * 0.45, max_len)
         x1 = ox + int(end_r * 1.20 * vx)
         y1 = oy + int(end_r * 1.00 * vy)
-
-        # clamp
         x0 = clamp(x0, -80, w + 80); y0 = clamp(y0, -80, h + 80)
         x1 = clamp(x1, -80, w + 80); y1 = clamp(y1, -80, h + 80)
-
-        # thin lines; occasional thicker one
         thick = 1 if random.random() < 0.85 else 2
-
-        # fade a bit by distance from origin (softer near the start)
         dist = max(1, ((x0 - ox) ** 2 + (y0 - oy) ** 2) ** 0.5)
         fade = clamp(dist / 260.0, 0.25, 1.0)
         a = int(base_alpha * fade)
-
-        # soft cyan-white (not harsh pure white)
         col = (200, 255, 255, a)
         pygame.draw.line(overlay, col, (x0, y0), (x1, y1), thick)
-
-    # small global transparency to prevent “harshness”
     overlay.set_alpha(int(160 * intensity))
     surf.blit(overlay, (0, 0))
 
+def draw_info_overlay(target_surf, info_alpha, started, alive, paused, counting_down, ammo, reloading):
+    """No panel, no borders: just darken + text."""
+    if info_alpha <= 1:
+        return
+
+    a = int(info_alpha)
+
+    # darken whole screen
+    overlay = pygame.Surface((W, H), pygame.SRCALPHA)
+    overlay.fill((0, 0, 0, int(190 * (a / 255.0))))
+    target_surf.blit(overlay, (0, 0))
+
+    # text block (centered-ish)
+    cx = W // 2
+    top = H // 2 - 240
+
+    draw_text_with_outline(target_surf, "CONTROLS", BIG_FONT, WHITE, (cx, top), center=True)
+    y = top + 80
+
+    reload_sec = RELOAD_TIME / 60.0
+
+    lines = [
+        ("Move left",  "LEFT / A"),
+        ("Move right", "RIGHT / D"),
+        ("Boost",      "UP / W"),
+        ("Brake",      "DOWN / S"),
+        ("Shoot",      "SPACE"),
+        ("Pause",      "ESC"),
+        ("Info",       "I"),
+        ("Quit",       "Q"),
+        ("Restart (crash)", "R"),
+        ("", ""),
+        ("Gameplay", ""),
+        ("Enemy car HP", f"{CAR_MAX_HP} hits"),
+        ("Magazine size", f"{MAG_SIZE} shots"),
+        ("Reload time", f"{reload_sec:.1f}s"),
+    ]
+
+    # column positions
+    lx = cx - 300
+    rx = cx + 60
+
+    key_font = pygame.font.SysFont("Arial", 22, bold=True)
+
+    for left, right in lines:
+        if left == "" and right == "":
+            y += 16
+            continue
+        if right == "" and left != "":
+            draw_text_with_outline(target_surf, left, key_font, NEON_CYAN, (lx, y))
+            y += 34
+            continue
+        draw_text_with_outline(target_surf, left, FONT, WHITE, (lx, y))
+        draw_text_with_outline(target_surf, right, key_font, WHITE, (rx, y))
+        y += 30
+
+    # dynamic status line
+    status = []
+    if not started:
+        status.append("Menu")
+    else:
+        if counting_down:
+            status.append("Countdown")
+        elif not alive:
+            status.append("Crashed")
+        elif paused:
+            status.append("Paused")
+        else:
+            status.append("Racing")
+
+    if started and alive and (not counting_down):
+        if reloading:
+            status.append("Reloading…")
+        else:
+            status.append(f"Ammo {ammo}/{MAG_SIZE}")
+
+    draw_text_with_outline(
+        target_surf,
+        " | ".join(status),
+        SMALL_FONT,
+        (200, 200, 200),
+        (lx, H - 110)
+    )
+    draw_text_with_outline(
+        target_surf,
+        "Click anywhere or press ESC / I to close",
+        SMALL_FONT,
+        (200, 200, 200),
+        (lx, H - 85)
+    )
+
+def draw_ammo_hud(frame, ammo, reloading):
+    hud_x, hud_y = 20, 92
+
+    if reloading:
+        draw_text_with_outline(frame, "RELOADING...", FONT, NEON_RED, (hud_x, hud_y))
+        hud_y += 28
+
+    icon_h = 38
+    icon_w = int(MAG_ICON.get_width() * (icon_h / max(1, MAG_ICON.get_height())))
+    mag_icon_s = scale_cached(MAG_ICON, (icon_w, icon_h), SCALE_CACHE)
+    frame.blit(mag_icon_s, (hud_x, hud_y))
+
+    pip_x = hud_x + icon_w + 12
+    pip_y = hud_y + 8
+    pip_w, pip_h, pip_gap = 10, 20, 4
+    total_w = MAG_SIZE * (pip_w + pip_gap) - pip_gap
+
+    pygame.draw.rect(frame, (0, 0, 0), (pip_x - 6, pip_y - 6, total_w + 12, pip_h + 12), border_radius=6)
+
+    for i in range(MAG_SIZE):
+        x = pip_x + i * (pip_w + pip_gap)
+        col = NEON_CYAN if i < ammo else (60, 60, 70)
+        pygame.draw.rect(frame, col, (x, pip_y, pip_w, pip_h), border_radius=3)
 
 # --- MAIN ---
 def main():
@@ -727,6 +793,18 @@ def main():
     reloading = False
     reload_timer = 0
 
+    # --- INFO OVERLAY (fade + dynamic) ---
+    show_info = False
+    info_alpha = 0.0
+    INFO_FADE_SPEED = 900.0
+
+    def toggle_info(open_it=None):
+        nonlocal show_info
+        if open_it is None:
+            show_info = not show_info
+        else:
+            show_info = bool(open_it)
+
     if os.path.exists(MUSIC_PATH):
         try:
             pygame.mixer.music.load(MUSIC_PATH)
@@ -754,8 +832,19 @@ def main():
     btn_restart = pygame.Rect(center_x, H // 2 + 40, btn_w, btn_h)
     btn_quit_over = pygame.Rect(center_x, H // 2 + 120, btn_w, btn_h)
 
+    # info button top-right
+    btn_info = pygame.Rect(W - 70, 20, 50, 50)
+
     while True:
         dt = clock.tick(60)
+        dt_s = dt / 1000.0
+
+        # fade update (always)
+        target = 255.0 if show_info else 0.0
+        if info_alpha < target:
+            info_alpha = min(target, info_alpha + INFO_FADE_SPEED * dt_s)
+        elif info_alpha > target:
+            info_alpha = max(target, info_alpha - INFO_FADE_SPEED * dt_s)
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -763,6 +852,15 @@ def main():
                 sys.exit()
 
             if event.type == pygame.MOUSEBUTTONDOWN:
+                # if info overlay visible, clicking anywhere closes it (and doesn't click through)
+                if info_alpha > 5:
+                    toggle_info(False)
+                    continue
+
+                if btn_info.collidepoint(event.pos):
+                    toggle_info()
+                    continue
+
                 if not started:
                     for i, r in enumerate(car_rects):
                         if r.collidepoint(event.pos):
@@ -776,12 +874,20 @@ def main():
                         ammo = MAG_SIZE
                         reloading = False
                         reload_timer = 0
+                        paused = False
+                        alive = True
+                        score = 0
+                        last_score = 0
+                        bullets.clear()
+                        explosions.clear()
+                        obstacles.clear()
+                        buildings.clear()
                     if btn_quit_menu.collidepoint(event.pos):
                         pygame.quit()
                         sys.exit()
                 elif not alive:
                     if btn_restart.collidepoint(event.pos):
-                        main()
+                        return main()
                     if btn_quit_over.collidepoint(event.pos):
                         pygame.quit()
                         sys.exit()
@@ -790,6 +896,18 @@ def main():
                 if event.key == pygame.K_q:
                     pygame.quit()
                     sys.exit()
+
+                if event.key == pygame.K_i:
+                    toggle_info()
+                    continue
+
+                if event.key == pygame.K_ESCAPE:
+                    if info_alpha > 5 or show_info:
+                        toggle_info(False)
+                        continue
+                    if started and alive and (not counting_down):
+                        paused = not paused
+                    continue
 
                 if not started:
                     if event.key == pygame.K_LEFT:
@@ -805,18 +923,22 @@ def main():
                         ammo = MAG_SIZE
                         reloading = False
                         reload_timer = 0
+                        paused = False
+                        alive = True
+                        score = 0
+                        last_score = 0
+                        bullets.clear()
+                        explosions.clear()
+                        obstacles.clear()
+                        buildings.clear()
 
                 elif alive and not counting_down:
-                    if event.key == pygame.K_ESCAPE:
-                        paused = not paused
-
                     if not paused:
                         if event.key in (pygame.K_LEFT, pygame.K_a):
                             player.move_left()
                         if event.key in (pygame.K_RIGHT, pygame.K_d):
                             player.move_right()
 
-                        # SHOOT (space) + ammo check
                         if event.key == pygame.K_SPACE:
                             if (not reloading) and ammo > 0 and shoot_cooldown <= 0:
                                 bullets.append(Bullet(player.lane, player.z - 0.08))
@@ -828,7 +950,7 @@ def main():
 
                 else:
                     if event.key == pygame.K_r:
-                        main()
+                        return main()
 
         keys = pygame.key.get_pressed()
 
@@ -844,7 +966,7 @@ def main():
         if shoot_cooldown > 0:
             shoot_cooldown -= 1
 
-        # reload update (only when in-game; keep it simple)
+        # reload update
         if started and alive and (not paused) and (not counting_down):
             if reloading:
                 reload_timer -= 1
@@ -907,7 +1029,6 @@ def main():
                     if b.z > 1.3:
                         buildings.remove(b)
 
-                # update obstacles + player collision
                 for obs in obstacles[:]:
                     obs.update(speed)
                     if obs.z > 1.3:
@@ -924,24 +1045,19 @@ def main():
                             explosions.append(Explosion(p_rect.centerx, p_rect.centery, player.z))
                             start_shake(22, 10)
 
-                # update bullets
                 for blt in bullets[:]:
                     blt.update()
                     if blt.z < 0.02:
                         bullets.remove(blt)
 
-                # bullet collisions -> cars take 5 hits
                 for blt in bullets[:]:
                     brect = blt.get_rect()
                     hit_any = False
-
                     for obs in obstacles[:]:
                         orect = obs.get_rect()
                         if not brect.colliderect(orect):
                             continue
-
                         hit_any = True
-
                         if obs.kind == "car":
                             obs.hp -= 1
                             score += 40
@@ -955,22 +1071,17 @@ def main():
                             start_shake(8, 5)
                             obstacles.remove(obs)
                             score += 100
-
                         break
-
                     if hit_any and blt in bullets:
                         bullets.remove(blt)
 
-                # update explosions
                 for ex in explosions[:]:
                     ex.update()
                     if ex.done():
                         explosions.remove(ex)
 
                 dash_offset = (dash_offset + speed * 2.0) % 1.0
-
         else:
-            # still animate explosions even when dead/paused/menu
             for ex in explosions[:]:
                 ex.update()
                 if ex.done():
@@ -1015,6 +1126,10 @@ def main():
 
             draw_button(screen, btn_play, "PLAY")
             draw_button(screen, btn_quit_menu, "QUIT", is_danger=True)
+
+            draw_button(screen, btn_info, "i" if info_alpha < 5 else "X", is_danger=(info_alpha >= 5))
+            draw_info_overlay(screen, info_alpha, started, alive, paused, counting_down, ammo, reloading)
+
             pygame.display.flip()
             continue
 
@@ -1043,14 +1158,10 @@ def main():
         speed_pct = min(1.0, (speed / 0.01))
         pygame.draw.rect(frame, (50, 50, 50), (20, 60, 200, 20), border_radius=5)
         pygame.draw.rect(frame, NEON_CYAN, (20, 60, int(200 * speed_pct), 20), border_radius=5)
-        draw_text_with_outline(frame, "SPEED", pygame.font.SysFont("Arial", 16), WHITE, (25, 62))
+        draw_text_with_outline(frame, "SPEED", SMALL_FONT, WHITE, (25, 62))
 
-        # ammo HUD
         if started:
-            if reloading:
-                draw_text_with_outline(frame, "RELOADING...", FONT, NEON_RED, (20, 92))
-            draw_text_with_outline(frame, f"AMMO: {ammo}/{MAG_SIZE}", FONT, WHITE, (20, 120))
-            draw_text_with_outline(frame, "SPACE: shoot", pygame.font.SysFont("Arial", 16), WHITE, (20, 148))
+            draw_ammo_hud(frame, ammo, reloading)
 
         if counting_down:
             draw_countdown_lights(frame, countdown_stage)
@@ -1073,42 +1184,34 @@ def main():
             txt = BIG_FONT.render("PAUZE", True, WHITE)
             frame.blit(txt, (W//2 - txt.get_width()//2, H//2))
 
+        draw_button(frame, btn_info, "i" if info_alpha < 5 else "X", is_danger=(info_alpha >= 5))
+        draw_info_overlay(frame, info_alpha, started, alive, paused, counting_down, ammo, reloading)
+
         # --- BOOST EFFECT (ONLY while accelerating) ---
-        # get car center for boost effects
         car_origin = None
         if player:
             pr = player.get_rect()
             car_origin = (pr.centerx, pr.centery - int(pr.h * 0.25))
 
-        keys = pygame.key.get_pressed()
-
         boosting_now = False
-        if started and alive and (not paused) and (not counting_down):
+        if started and alive and (not paused) and (not counting_down) and (info_alpha <= 5):
             boosting_now = (keys[pygame.K_UP] or keys[pygame.K_w])
 
-# default: no zoom / no warp
         final_frame = frame
 
         if boosting_now:
-            # intensity based on speed (only matters while boosting)
             speed_pct = min(1.0, (speed / 0.01))
             boost_intensity = clamp(speed_pct, 0.0, 1.0)
 
-            # 1) subtle motion-blur "ghost" (cheap and effective)
             ghost = frame.copy()
-            # shift downward a tiny bit (directional feel)
             ghost.blit(frame, (0, 6))
             ghost.set_alpha(int(60 + 90 * boost_intensity))
             frame.blit(ghost, (0, 0))
 
-            # 2) radial warp streaks from horizon/center
-            # draw_boost_warp(frame, boost_intensity, origin=(W // 2, int(H * 0.28)))
             if car_origin:
                 draw_boost_warp(frame, boost_intensity, origin=car_origin)
 
-
-            # 3) camera punch-in
-            zoom = 1.0 + (0.06 * boost_intensity)  # up to +6%
+            zoom = 1.0 + (0.06 * boost_intensity)
             zoom_w = int(W * zoom)
             zoom_h = int(H * zoom)
             zoomed = pygame.transform.smoothscale(frame, (zoom_w, zoom_h))
@@ -1116,11 +1219,9 @@ def main():
             crop_y = (zoom_h - H) // 2
             final_frame = zoomed.subsurface((crop_x, crop_y, W, H))
 
-# apply shake on the final blit
         screen.fill((0, 0, 0))
         screen.blit(final_frame, (cam_dx, cam_dy))
         pygame.display.flip()
-
 
 if __name__ == "__main__":
     main()
