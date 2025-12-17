@@ -2,11 +2,13 @@ import pygame
 import random
 import sys
 import os
+import json 
 
 # --- PATH CONFIGURATION ---
 BASE_DIR = os.path.dirname(__file__)
 ASSETS_DIR = os.path.join(BASE_DIR, "assets")
 SOUND_DIR = os.path.join(BASE_DIR, "sound")
+LEADERBOARD_FILE = os.path.join(BASE_DIR, "leaderboard.json")
 
 def load_image(name):
     path = os.path.join(ASSETS_DIR, name)
@@ -24,6 +26,61 @@ def load_sound(name):
     except FileNotFoundError:
         return None
 
+# --- LEADERBOARD LOGICA ---
+def get_high_scores():
+    if not os.path.exists(LEADERBOARD_FILE):
+        return []
+    try:
+        with open(LEADERBOARD_FILE, "r") as f:
+            return json.load(f)
+    except:
+        return []
+
+def save_new_score(score):
+    scores = get_high_scores()
+    scores.append(score)
+    scores.sort(reverse=True)
+    scores = scores[:3] # Top 3
+    
+    with open(LEADERBOARD_FILE, "w") as f:
+        json.dump(scores, f)
+    return scores
+
+def draw_leaderboard_panel(surf, scores, center_x, start_y):
+    """Tekent de scores minimalistisch (zonder kader)."""
+    
+    # Titel (Clean, geen blauwe achtergrond meer)
+    title = FONT.render("LEADERBOARD", True, NEON_CYAN)
+    surf.blit(title, (center_x - title.get_width() // 2, start_y))
+
+    # De Lijst
+    for i in range(3):
+        # Kleuren behouden
+        if i == 0: color = (255, 215, 0)   # Goud
+        elif i == 1: color = (192, 192, 192) # Zilver
+        elif i == 2: color = (205, 127, 50)  # Brons
+        else: color = (100, 100, 100)
+
+        if i < len(scores):
+            score_val = scores[i]
+            score_str = f"{score_val}"
+            rank_str = f"#{i+1}"
+        else:
+            score_str = "---"
+            rank_str = f"#{i+1}"
+            color = (80, 80, 80) # Donkergrijs voor lege plekken
+
+        # Positie (iets compacter nu er geen box is)
+        row_y = start_y + 40 + (i * 30)
+        
+        # Rank links van het midden
+        rank_txt = FONT.render(rank_str, True, color)
+        surf.blit(rank_txt, (center_x - 70, row_y))
+
+        # Score rechts uitgelijnd t.o.v. het midden
+        score_txt = FONT.render(score_str, True, WHITE)
+        surf.blit(score_txt, (center_x + 70 - score_txt.get_width(), row_y))
+
 # --- INITIALIZATION ---
 pygame.init()
 pygame.mixer.init()
@@ -39,6 +96,7 @@ BIG_FONT = pygame.font.SysFont("Arial", 64, bold=True)
 COUNTDOWN_FONT = pygame.font.SysFont("Arial", 120, bold=True)
 BUTTON_FONT = pygame.font.SysFont("Arial", 24, bold=True)
 SMALL_FONT = pygame.font.SysFont("Arial", 16, bold=True)
+INFO_FONT = pygame.font.SysFont("Times New Roman", 30, bold=True)
 
 # --- ASSETS LOADING ---
 CAR_DRIVE_1 = pygame.transform.rotate(load_image("retro_porsche.png"), 0)
@@ -57,10 +115,8 @@ IMG_FALLBACK_ENEMY = pygame.transform.rotate(load_image("car.png"), 0)
 
 MAG_ICON = load_image("ammo.png")
 
-# Try loading skyline from your test file logic
 try:
     raw_skyline = load_image("skyline.png")
-    # If it's the default purple square (not found), set to None
     if raw_skyline.get_width() == 50:
         IMG_SKYLINE = None
     else:
@@ -107,14 +163,13 @@ CAR_MAX_HP = 5
 MAG_SIZE = 12
 RELOAD_TIME = 180
 
-# --- COLORS (INTEGRATED PALETTE) ---
+# --- COLORS ---
 NEON_CYAN = (0, 255, 255)
 NEON_RED = (255, 50, 50)
 WHITE = (255, 255, 255)
 KERB_RED = (200, 0, 0)
 KERB_WHITE = (230, 230, 230)
 
-# Night City Palette
 BUILDING_DARK  = (10, 10, 25)
 BUILDING_BASE  = (20, 20, 40)
 BUILDING_SIDE  = (15, 15, 30)
@@ -123,7 +178,6 @@ WIN_WARM       = (255, 160, 50)
 WIN_COOL       = (100, 200, 255)
 WIN_RED        = (255, 50, 50)
 
-# Terrain Colors
 GRASS_DARK  = (10, 10, 20)
 GRASS_LIGHT = (15, 15, 30)
 SIDEWALK    = (40, 40, 50)
@@ -156,7 +210,7 @@ def scale_cached(img, size, cache):
     w, h = max(1, int(size[0])), max(1, int(size[1]))
     key = (id(img), w, h)
     if key not in cache:
-        cache[key] = pygame.transform.smoothscale(img, (w, h))
+        cache[key] = pygame.transform.scale(img, (w, h)) 
     return cache[key]
 
 def draw_text_with_outline(surf, text, font, color, pos, center=False):
@@ -251,11 +305,9 @@ def draw_countdown_lights(surf, stage):
         pygame.draw.circle(surf, main_color, (x, y), radius)
 
 def generate_building_surface(w, h, side):
-    """Generates a high-quality pixel art building texture."""
     surf = pygame.Surface((w, h))
     surf.fill(BUILDING_BASE)
     
-    # Side face for depth
     side_width = random.randint(5, 15)
     if side == -1:
         pygame.draw.rect(surf, BUILDING_SIDE, (0, 0, side_width, h))
@@ -296,6 +348,36 @@ def generate_building_surface(w, h, side):
     pygame.draw.rect(surf, (40, 40, 60), (0, 0, w, 4))
     return surf
 
+def draw_tech_info_button(surf, rect, hover):
+    center = rect.center
+    radius = rect.width // 2
+    import math
+    time_val = pygame.time.get_ticks() / 500.0
+    pulse_scale = 1.0 + (math.sin(time_val) * 0.1) if not hover else 1.2
+    
+    base_col = (0, 100, 150)
+    border_col = NEON_CYAN
+    text_col = NEON_CYAN
+    
+    if hover:
+        base_col = (0, 150, 200)
+        border_col = (200, 255, 255)
+        text_col = WHITE
+
+    glow_surf = pygame.Surface((int(rect.width * 2), int(rect.height * 2)), pygame.SRCALPHA)
+    glow_radius = int(radius * pulse_scale)
+    pygame.draw.circle(glow_surf, (*border_col, 50), (rect.width, rect.height), glow_radius)
+    surf.blit(glow_surf, (center[0] - rect.width, center[1] - rect.height), special_flags=pygame.BLEND_ADD)
+
+    pygame.draw.circle(surf, (*base_col, 200), center, radius)
+    thickness = 3 if hover else 2
+    pygame.draw.circle(surf, border_col, center, radius, thickness)
+    
+    txt = INFO_FONT.render("i", True, text_col)
+    txt_rect = txt.get_rect(center=center)
+    txt_rect.y -= 3 
+    surf.blit(txt, txt_rect)
+
 # --- DRAWING ENVIRONMENT ---
 def draw_background_and_terrain(surf, t_scroll):
     # 1. Skyline
@@ -324,7 +406,7 @@ def draw_background_and_terrain(surf, t_scroll):
         scroll_val = (t0 + t_scroll) * 15
         stripe = int(scroll_val) % 2
         
-        # Terrain (Dark Grass)
+        # Terrain
         col_grass = GRASS_LIGHT if stripe == 0 else GRASS_DARK
         pygame.draw.rect(surf, col_grass, (0, int(y0), W, int(y1-y0)+1))
 
@@ -405,9 +487,9 @@ class Particle:
             pygame.draw.circle(s, (*self.color, 150), (int(self.size), int(self.size)), int(self.size))
             surf.blit(s, (int(self.x), int(self.y)))
 
-class SideObject: # Verbeterde Lantaarnpalen
+class SideObject: 
     def __init__(self, side, z):
-        self.side = side # -1 Links, 1 Rechts
+        self.side = side 
         self.z = z
         
     def update(self, speed):
@@ -415,119 +497,81 @@ class SideObject: # Verbeterde Lantaarnpalen
 
     def draw(self, surf):
         y = y_from_z(self.z)
-        # We stoppen iets eerder met tekenen als het te dichtbij is, 
-        # anders flitst het door het scherm heen
         if self.z > 1.2: return 
 
         scale = lerp(0.22, 1.18, self.z)
-        
-        # Positie bepalen
         left_road, right_road = road_edges_at_y(y)
-        offset_x = 25 * scale # Iets verder van de weg af
+        offset_x = 25 * scale 
         
-        if self.side == -1: 
-            x = left_road - offset_x
-        else: 
-            x = right_road + offset_x
+        if self.side == -1: x = left_road - offset_x
+        else: x = right_road + offset_x
             
         self.draw_highway_lamp(surf, x, y, scale)
 
     def draw_highway_lamp(self, surf, x, y, scale):
-        # --- CONFIGURATIE ---
-        pole_color = (40, 44, 50) # Donkergrijs metaal
-        light_housing_color = (70, 75, 80) # Iets lichter grijs voor de bak
+        pole_color = (40, 44, 50) 
+        light_housing_color = (70, 75, 80) 
         
-        # Maten
         pole_h = 260 * scale
         pole_w = max(2, 7 * scale)
         arm_width = 70 * scale
-        
-        # Richting bepalen (arm moet naar de weg wijzen)
         direction = 1 if self.side == -1 else -1
         
-        # 1. DE PAAL (Tapered: breed onder, smal boven)
-        # We tekenen een polygoon voor een taps toelopende paal
         base_half_w = pole_w * 0.8
         top_half_w = pole_w * 0.4
         
         poly_pole = [
-            (x - base_half_w, y),           # Linksonder
-            (x - top_half_w, y - pole_h),   # Linksboven
-            (x + top_half_w, y - pole_h),   # Rechtsboven
-            (x + base_half_w, y)            # Rechtsonder
+            (x - base_half_w, y),           
+            (x - top_half_w, y - pole_h),   
+            (x + top_half_w, y - pole_h),   
+            (x + base_half_w, y)            
         ]
         pygame.draw.polygon(surf, pole_color, poly_pole)
         
-        # 2. DE ARM (Schuin omhoog)
         arm_start_x = x
         arm_start_y = y - pole_h + (2 * scale)
-        
-        # Het uiteinde van de arm
         arm_end_x = x + (direction * arm_width)
-        arm_end_y = arm_start_y - (15 * scale) # Arm loopt iets omhoog
+        arm_end_y = arm_start_y - (15 * scale) 
         
         pygame.draw.line(surf, pole_color, (arm_start_x, arm_start_y), (arm_end_x, arm_end_y), int(max(2, 5 * scale)))
         
-        # 3. DE LAMP-BEHUIZING (Trapezium vorm)
-        # Dit ziet er realistischer uit dan een blokje
         head_w = 28 * scale
         head_h = 10 * scale
-        
-        # Coördinaten van de lampkop (hangt aan het eind van de arm)
         hx = arm_end_x
         hy = arm_end_y
         
-        # Een trapezium vorm tekenen
         poly_head = [
-            (hx - (head_w/2), hy),              # Boven-links
-            (hx + (head_w/2), hy),              # Boven-rechts
-            (hx + (head_w/2 * 0.7), hy + head_h), # Onder-rechts (iets smaller)
-            (hx - (head_w/2 * 0.7), hy + head_h)  # Onder-links (iets smaller)
+            (hx - (head_w/2), hy),              
+            (hx + (head_w/2), hy),              
+            (hx + (head_w/2 * 0.7), hy + head_h), 
+            (hx - (head_w/2 * 0.7), hy + head_h)  
         ]
         pygame.draw.polygon(surf, light_housing_color, poly_head)
         
-        # 4. HET LICHT (Kegel effect + Flare)
-        
-        # De 'bulb' zelf (klein fel wit streepje onderaan de behuizing)
         bulb_rect = pygame.Rect(0, 0, head_w * 0.6, 3 * scale)
         bulb_rect.center = (hx, hy + head_h)
         pygame.draw.rect(surf, (255, 255, 240), bulb_rect)
         
-        # GLOW EFFECT
-        # We maken de glow veel subtieler en kegelvormig (omlaag schijnend)
-        glow_size = 20 * scale # Hoe ver het licht reikt
-        
-        # Maak een surface voor de glow
+        glow_size = 20 * scale 
         glow_surf = pygame.Surface((int(glow_size), int(glow_size)), pygame.SRCALPHA)
+        glow_center = (glow_size//2, 0)
         
-        # We tekenen een ovale gloed die omlaag is gerekt ("Floodlight" effect)
-        # Kleur: Warm wit/geel, heel transparant (alpha 20-40)
-        glow_center = (glow_size//2, 0) # Licht begint bovenin de surface
-        
-        # Grote zachte kegel
         rect_glow = pygame.Rect(0, 0, glow_size, glow_size)
         pygame.draw.ellipse(glow_surf, (*LANTERN_GLOW, 25), rect_glow)
         
-        # Kleinere felle kern
         rect_core = pygame.Rect(glow_size*0.25, 0, glow_size*0.5, glow_size*0.6)
         pygame.draw.ellipse(glow_surf, (255, 255, 255, 40), rect_core)
         
-        # Roteren kan lastig zijn met surfaces, dus we blitten hem gecentreerd onder de lamp
-        # We positioneren de glow surface zodat de bovenkant bij de lamp begint
         dest_x = hx - (glow_size // 2)
-        dest_y = hy + head_h - (10 * scale) # Iets omhoog schuiven zodat de kern in de lamp zit
-        
-        # Blit met ADD blending voor het licht-effect
+        dest_y = hy + head_h - (10 * scale) 
         surf.blit(glow_surf, (dest_x, dest_y), special_flags=pygame.BLEND_ADD)
-        
-        # Lens flare (optioneel, klein wit stipje voor de felheid)
         pygame.draw.circle(surf, (255, 255, 255), (int(hx), int(hy + head_h)), int(3 * scale))
 
 class Building:
     def __init__(self, side, z, layer=1):
         self.side = side 
         self.z = z
-        self.layer = layer # 1 = Front row, 2 = Back row
+        self.layer = layer 
         
         size_mult = 1.0 if layer == 1 else 1.5
         base_w = int(random.randint(100, 180) * size_mult)
@@ -853,7 +897,7 @@ def main():
     player = None
     selected_car_idx = 0
     obstacles = []
-    buildings = [] # Stores both Buildings and SideObjects (Lanterns)
+    buildings = [] 
     
     score = 0
     last_score = 0
@@ -869,8 +913,6 @@ def main():
     dash_offset = 0.0
     spawn_progress = 0.0
     lantern_spawn_progress = 0.0
-    
-    # New Spawn logic vars
     building_spawn_progress = 0.0
     spawn_threshold = 0.45
 
@@ -881,6 +923,10 @@ def main():
     show_info = False
     info_alpha = 0.0
     INFO_FADE_SPEED = 900.0
+    
+    # Leaderboard state
+    score_saved = False
+    high_scores = []
 
     def toggle_info(open_it=None):
         nonlocal show_info
@@ -934,6 +980,7 @@ def main():
                         player = Player(PLAYER_DRIVE_SPRITES[selected_car_idx])
                         ammo = MAG_SIZE; reloading = False; reload_timer = 0
                         paused = False; alive = True; score = 0; last_score = 0
+                        score_saved = False # Reset voor nieuwe ronde
                         bullets.clear(); explosions.clear(); obstacles.clear(); buildings.clear()
                     if btn_quit_menu.collidepoint(event.pos): pygame.quit(); sys.exit()
                 elif not alive:
@@ -954,6 +1001,7 @@ def main():
                         player = Player(PLAYER_DRIVE_SPRITES[selected_car_idx])
                         ammo = MAG_SIZE; reloading = False; reload_timer = 0
                         paused = False; alive = True; score = 0; last_score = 0
+                        score_saved = False # Reset voor nieuwe ronde
                         bullets.clear(); explosions.clear(); obstacles.clear(); buildings.clear()
                 elif alive and not counting_down:
                     if not paused:
@@ -1010,28 +1058,22 @@ def main():
                             sprite = IMG_ENEMIES[enemy_cycle_i]; enemy_cycle_i = (enemy_cycle_i + 1) % len(IMG_ENEMIES)
                         obstacles.append(Obstacle(lane, z_spawn, kind, sprite))
 
-                # Building & Lantern Spawning (Layered Logic)
-                # 1. Lanterns (Fixed interval, less frequent, symmetrical)
+                # Lantern Spawning
                 lantern_spawn_progress += speed
-                if lantern_spawn_progress > 0.40: # Adjusted to 0.40 so they appear less often
+                if lantern_spawn_progress > 0.40:
                     lantern_spawn_progress = 0
-                    # Spawn both sides at once for a clean "avenue" look
                     buildings.append(SideObject(-1, Z_SPAWN_MIN))
                     buildings.append(SideObject(1, Z_SPAWN_MIN))
 
-                # 2. Buildings (Randomized background)
+                # Building Spawning
                 building_spawn_progress += speed
                 if building_spawn_progress > 0.12: 
                     building_spawn_progress = 0
-                    
-                    # Front Buildings (Layer 1)
                     if random.random() < 0.4:
                         if not any(isinstance(b, Building) and b.layer == 1 and b.side == -1 and abs(b.z - Z_SPAWN_MIN) < 0.2 for b in buildings):
                             buildings.append(Building(-1, Z_SPAWN_MIN, layer=1))
                         if not any(isinstance(b, Building) and b.layer == 1 and b.side == 1 and abs(b.z - Z_SPAWN_MIN) < 0.2 for b in buildings):
                             buildings.append(Building(1, Z_SPAWN_MIN, layer=1))
-                            
-                    # Back Buildings (Layer 2)
                     if random.random() < 0.5:
                         if not any(isinstance(b, Building) and b.layer == 2 and b.side == -1 and abs(b.z - Z_SPAWN_MIN) < 0.15 for b in buildings):
                             buildings.append(Building(-1, Z_SPAWN_MIN, layer=2))
@@ -1108,14 +1150,13 @@ def main():
                 screen.blit(menu_car_img, img_rect.topleft)
             draw_button(screen, btn_play, "PLAY")
             draw_button(screen, btn_quit_menu, "QUIT", is_danger=True)
-            draw_button(screen, btn_info, "i" if info_alpha < 5 else "X", is_danger=(info_alpha >= 5))
+            draw_tech_info_button(screen, btn_info, info_alpha >= 5) # Updated info button
             draw_info_overlay(screen, info_alpha, started, alive, paused, counting_down, ammo, reloading)
             pygame.display.flip(); continue
 
         frame = pygame.Surface((W, H))
         draw_background_and_terrain(frame, dash_offset)
         
-        # Sort buildings (and lanterns) by Z depth
         buildings.sort(key=lambda b: b.z)
         for b in buildings: b.draw(frame)
 
@@ -1137,19 +1178,35 @@ def main():
             s = pygame.Surface((W, H), pygame.SRCALPHA)
             s.fill((50, 0, 0, 200))
             frame.blit(s, (0, 0))
+            
+            # --- LEADERBOARD LOGICA ---
+            if not score_saved:
+                high_scores = save_new_score(last_score)
+                score_saved = True
+            
+            # Teksten en layout
             txt = BIG_FONT.render("CRASHED!", True, (255, 50, 50))
-            frame.blit(txt, (W//2 - txt.get_width()//2, H//2 - 120))
+            frame.blit(txt, (W//2 - txt.get_width()//2, H//2 - 220))
+            
             score_txt = FONT.render(f"YOUR SCORE: {last_score}", True, WHITE)
-            frame.blit(score_txt, (W//2 - score_txt.get_width()//2, H//2 - 30))
+            frame.blit(score_txt, (W//2 - score_txt.get_width()//2, H//2 - 150))
+            
+            # LEADERBOARD TEKENEN
+            draw_leaderboard_panel(frame, high_scores, W//2, H//2 - 100)
+            
+            # Knoppen verplaatst
+            btn_restart.y = H//2 + 90
+            btn_quit_over.y = H//2 + 150
             draw_button(frame, btn_restart, "RESTART")
             draw_button(frame, btn_quit_over, "QUIT", is_danger=True)
+            
         elif paused:
             s = pygame.Surface((W, H), pygame.SRCALPHA)
             s.fill((0, 0, 0, 150))
             frame.blit(s, (0, 0))
             txt = BIG_FONT.render("PAUZE", True, WHITE)
             frame.blit(txt, (W//2 - txt.get_width()//2, H//2))
-        draw_button(frame, btn_info, "i" if info_alpha < 5 else "X", is_danger=(info_alpha >= 5))
+        draw_tech_info_button(screen, btn_info, info_alpha >= 5)
         draw_info_overlay(frame, info_alpha, started, alive, paused, counting_down, ammo, reloading)
 
         car_origin = None
@@ -1170,7 +1227,7 @@ def main():
             if car_origin: draw_boost_warp(frame, boost_intensity, origin=car_origin)
             zoom = 1.0 + (0.06 * boost_intensity)
             zoom_w = int(W * zoom); zoom_h = int(H * zoom)
-            zoomed = pygame.transform.smoothscale(frame, (zoom_w, zoom_h))
+            zoomed = pygame.transform.scale(frame, (zoom_w, zoom_h)) # SCALE GEBRUIKEN (MAC FIX)
             crop_x = (zoom_w - W) // 2; crop_y = (zoom_h - H) // 2
             final_frame = zoomed.subsurface((crop_x, crop_y, W, H))
         screen.fill((0, 0, 0))
