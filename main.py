@@ -3,7 +3,7 @@ import random
 import sys
 import os
 
-# --- PAD CONFIGURATIE ---
+# --- PATH CONFIGURATION ---
 BASE_DIR = os.path.dirname(__file__)
 ASSETS_DIR = os.path.join(BASE_DIR, "assets")
 SOUND_DIR = os.path.join(BASE_DIR, "sound")
@@ -24,13 +24,13 @@ def load_sound(name):
     except FileNotFoundError:
         return None
 
-# --- INITIALISATIE ---
+# --- INITIALIZATION ---
 pygame.init()
 pygame.mixer.init()
 
 W, H = 1024, 768
 screen = pygame.display.set_mode((W, H))
-pygame.display.set_caption("Triple Threat - Final Version")
+pygame.display.set_caption("Triple Threat - Final Version (Enhanced)")
 clock = pygame.time.Clock()
 
 # --- FONTS ---
@@ -40,7 +40,7 @@ COUNTDOWN_FONT = pygame.font.SysFont("Arial", 120, bold=True)
 BUTTON_FONT = pygame.font.SysFont("Arial", 24, bold=True)
 SMALL_FONT = pygame.font.SysFont("Arial", 16, bold=True)
 
-# --- ASSETS LADEN ---
+# --- ASSETS LOADING ---
 CAR_DRIVE_1 = pygame.transform.rotate(load_image("retro_porsche.png"), 0)
 CAR_DRIVE_2 = pygame.transform.rotate(load_image("backviewbmwm3.png"), 0)
 CAR_DRIVE_3 = pygame.transform.rotate(load_image("backview_skyline.png"), 0)
@@ -55,8 +55,22 @@ ENEMY_FILENAMES = ["kart.png", "front_view.png", "sport_car.png", "bmw.png", "bm
 IMG_ENEMIES = [pygame.transform.rotate(load_image(f), 0) for f in ENEMY_FILENAMES]
 IMG_FALLBACK_ENEMY = pygame.transform.rotate(load_image("car.png"), 0)
 
-# optional mag icon for ammo HUD
 MAG_ICON = load_image("ammo.png")
+
+# Try loading skyline from your test file logic
+try:
+    raw_skyline = load_image("skyline.png")
+    # If it's the default purple square (not found), set to None
+    if raw_skyline.get_width() == 50:
+        IMG_SKYLINE = None
+    else:
+        sky_w, sky_h = raw_skyline.get_size()
+        target_h = 160
+        scale_factor = target_h / sky_h
+        new_w = int(sky_w * scale_factor)
+        IMG_SKYLINE = pygame.transform.smoothscale(raw_skyline, (new_w, target_h))
+except Exception:
+    IMG_SKYLINE = None
 
 try:
     poster_path = os.path.join(ASSETS_DIR, "poster.jpg")
@@ -78,7 +92,7 @@ for i in range(1, 11):
     img = load_image(f"explosion/explosion-c{i}.png")
     EXPLOSION_FRAMES.append(img)
 
-# --- CONSTANTEN ---
+# --- CONSTANTS ---
 LANES = 3
 ROAD_NEAR_Y = H
 ROAD_FAR_Y = 160
@@ -88,21 +102,36 @@ ROAD_CENTER_X = W // 2
 Z_SPAWN_MIN = 0.03
 Z_SPAWN_MAX = 0.20
 
-# car HP
+# GAMEPLAY CONSTANTS
 CAR_MAX_HP = 5
-
-# ammo
 MAG_SIZE = 12
-RELOAD_TIME = 180  # frames (~3.0s @ 60fps)
+RELOAD_TIME = 180
 
-# KLEUREN
+# --- COLORS (INTEGRATED PALETTE) ---
 NEON_CYAN = (0, 255, 255)
 NEON_RED = (255, 50, 50)
 WHITE = (255, 255, 255)
 KERB_RED = (200, 0, 0)
 KERB_WHITE = (230, 230, 230)
 
-# --- HULPFUNCTIES ---
+# Night City Palette
+BUILDING_DARK  = (10, 10, 25)
+BUILDING_BASE  = (20, 20, 40)
+BUILDING_SIDE  = (15, 15, 30)
+WIN_OFF        = (12, 12, 28)
+WIN_WARM       = (255, 160, 50)
+WIN_COOL       = (100, 200, 255)
+WIN_RED        = (255, 50, 50)
+
+# Terrain Colors
+GRASS_DARK  = (10, 10, 20)
+GRASS_LIGHT = (15, 15, 30)
+SIDEWALK    = (40, 40, 50)
+SIDEWALK_L  = (50, 50, 60)
+LANTERN_GLOW = (255, 200, 50)
+
+
+# --- HELPER FUNCTIONS ---
 def clamp(x, a, b): return max(a, min(b, x))
 def lerp(a, b, t): return a + (b - a) * t
 def ease_in(t): return t * t
@@ -142,7 +171,7 @@ def draw_text_with_outline(surf, text, font, color, pos, center=False):
     surf.blit(render_outline, (x-2, y))
     surf.blit(render_outline, (x+2, y))
     surf.blit(render_outline, (x, y-2))
-    surf.blit(render_outline, (x, y+2))
+    surf.blit(render_outline, (x+2, y))
     surf.blit(render_base, (x, y))
 
 def draw_shadow(surf, rect, alpha=100):
@@ -180,11 +209,9 @@ def draw_button(surf, rect, text, is_danger=False):
     surf.blit(text_shadow, (text_rect.x + 1, text_rect.y + 1))
     surf.blit(text_surf, text_rect)
 
-# --- HORIZONTAAL STOPLICHT ---
 def draw_countdown_lights(surf, stage):
     center_x = W // 2
     center_y = H // 4
-
     if stage == 0:
         offset_x = random.randint(-3, 3)
         offset_y = random.randint(-3, 3)
@@ -198,15 +225,9 @@ def draw_countdown_lights(surf, stage):
     box_w, box_h = 220, 80
     box_rect = pygame.Rect(0, 0, box_w, box_h)
     box_rect.center = (center_x, center_y)
-
     pygame.draw.rect(surf, (20, 22, 25), box_rect, border_radius=20)
     pygame.draw.rect(surf, (160, 170, 180), box_rect, 4, border_radius=20)
     pygame.draw.rect(surf, (10, 10, 10), box_rect.inflate(-6, -6), 2, border_radius=18)
-
-    bolt_offset = 12
-    for bx in [box_rect.left + bolt_offset, box_rect.right - bolt_offset]:
-        for by in [box_rect.top + bolt_offset, box_rect.bottom - bolt_offset]:
-            pygame.draw.circle(surf, (100, 100, 100), (bx, by), 3)
 
     radius = 22
     spacing = 65
@@ -216,65 +237,81 @@ def draw_countdown_lights(surf, stage):
         1: {"lit": (0, 255, 80),    "dark": (0, 60, 20),    "glow": (0, 255, 0)}
     }
     current_set = colors.get(stage, colors[3])
-
-    positions = [
-        (center_x - spacing, center_y),
-        (center_x, center_y),
-        (center_x + spacing, center_y)
-    ]
+    positions = [(center_x - spacing, center_y), (center_x, center_y), (center_x + spacing, center_y)]
 
     for x, y in positions:
         pygame.draw.circle(surf, (5, 5, 5), (x, y), radius + 4)
         pygame.draw.circle(surf, (80, 80, 90), (x, y), radius + 4, 2)
-
         glow_radius = int(radius * 1)
         glow_surf = pygame.Surface((glow_radius * 2, glow_radius * 2), pygame.SRCALPHA)
         glow_rgb = current_set["glow"]
         pygame.draw.circle(glow_surf, (*glow_rgb, 30), (glow_radius, glow_radius), glow_radius)
-        pygame.draw.circle(glow_surf, (*glow_rgb, 60), (glow_radius, glow_radius), int(radius * 0.8))
         surf.blit(glow_surf, (x - glow_radius, y - glow_radius), special_flags=pygame.BLEND_ADD)
-
         main_color = current_set["lit"]
         pygame.draw.circle(surf, main_color, (x, y), radius)
-        pygame.draw.circle(surf, [min(255, c + 50) for c in main_color], (x, y), int(radius * 0.7))
 
-        shine_rect = pygame.Rect(x - radius * 0.5, y - radius * 0.6, radius * 0.4, radius * 0.25)
-        pygame.draw.ellipse(surf, (255, 255, 255, 180), shine_rect)
+def generate_building_surface(w, h, side):
+    """Generates a high-quality pixel art building texture."""
+    surf = pygame.Surface((w, h))
+    surf.fill(BUILDING_BASE)
+    
+    # Side face for depth
+    side_width = random.randint(5, 15)
+    if side == -1:
+        pygame.draw.rect(surf, BUILDING_SIDE, (0, 0, side_width, h))
+        draw_area_x = side_width
+    else:
+        pygame.draw.rect(surf, BUILDING_SIDE, (w - side_width, 0, side_width, h))
+        draw_area_x = 0
 
-# --- SKYLINE GENERATIE ---
-skyline_segments = []
-num_buildings = 60
-bg_width = W // num_buildings + 1
-for _ in range(num_buildings + 5):
-    skyline_segments.append(random.randint(30, 150))
+    face_w = w - side_width
+    win_w = random.randint(4, 8)
+    win_h = random.randint(6, 12)
+    gap_x = random.randint(3, 5)
+    gap_y = random.randint(4, 8)
+    
+    cols = face_w // (win_w + gap_x)
+    rows = h // (win_h + gap_y)
+    style = random.choice(["scattered", "lines", "office"])
+    
+    for r in range(1, rows):
+        is_lit_col = random.random() < 0.3 if style == "lines" else False
+        for c in range(cols):
+            px = draw_area_x + c * (win_w + gap_x) + 2
+            py = r * (win_h + gap_y) + 4
+            
+            if style == "lines": lit = is_lit_col and random.random() < 0.9
+            elif style == "office": lit = random.random() < 0.6
+            else: lit = random.random() < 0.2
+            
+            if lit:
+                rnd = random.random()
+                if rnd < 0.8: color = WIN_WARM
+                elif rnd < 0.99: color = WIN_COOL
+                else: color = WIN_RED
+            else:
+                color = WIN_OFF
+            pygame.draw.rect(surf, color, (px, py, win_w, win_h))
+            
+    pygame.draw.rect(surf, (40, 40, 60), (0, 0, w, 4))
+    return surf
 
-stars = []
-for _ in range(50):
-    stars.append((random.randint(0, W), random.randint(0, ROAD_FAR_Y)))
-
+# --- DRAWING ENVIRONMENT ---
 def draw_background_and_terrain(surf, t_scroll):
-    for y in range(H):
-        c = int(50 * (y/H))
-        col = (10, 5 + c//2, 20 + c)
-        pygame.draw.line(surf, col, (0, y), (W, y))
+    # 1. Skyline
+    if IMG_SKYLINE:
+        img_w = IMG_SKYLINE.get_width()
+        current_x = 0
+        while current_x < W:
+            surf.blit(IMG_SKYLINE, (current_x, 0))
+            current_x += img_w - 1
+    else:
+        for y in range(H):
+            c = int(50 * (y/H))
+            col = (10, 5 + c//2, 20 + c)
+            pygame.draw.line(surf, col, (0, y), (W, y))
 
-    for sx, sy in stars:
-        if random.random() > 0.98:
-            continue
-        pygame.draw.circle(surf, (200, 200, 255), (sx, sy), 1)
-
-    for i, h in enumerate(skyline_segments):
-        x = i * bg_width
-        rect_back = pygame.Rect(x, ROAD_FAR_Y - h, bg_width, h + 100)
-        pygame.draw.rect(surf, (15, 15, 25), rect_back)
-
-        h2 = skyline_segments[(i + 3) % len(skyline_segments)] * 0.7
-        rect_front = pygame.Rect(x, ROAD_FAR_Y - h2, bg_width, h2 + 100)
-        pygame.draw.rect(surf, (30, 30, 45), rect_front)
-
-        if i % 4 == 0:
-            pygame.draw.rect(surf, (255, 255, 100), (x + 2, ROAD_FAR_Y - h2 + 10, 2, 2))
-
+    # 2. Terrain & Sidewalks
     bands = 120
     for i in range(bands):
         t0 = i / bands
@@ -283,14 +320,24 @@ def draw_background_and_terrain(surf, t_scroll):
         y1 = lerp(ROAD_FAR_Y, ROAD_NEAR_Y, t1)
         left0, right0 = road_edges_at_y(y0)
         left1, right1 = road_edges_at_y(y1)
+        
         scroll_val = (t0 + t_scroll) * 15
         stripe = int(scroll_val) % 2
-        c = 38 if stripe == 0 else 35
-        ground_col = (c, c, c + 8)
-        left_poly = [(0, y0), (left0, y0), (left1, y1), (0, y1)]
-        right_poly = [(right0, y0), (W, y0), (W, y1), (right1, y1)]
-        pygame.draw.polygon(surf, ground_col, left_poly)
-        pygame.draw.polygon(surf, ground_col, right_poly)
+        
+        # Terrain (Dark Grass)
+        col_grass = GRASS_LIGHT if stripe == 0 else GRASS_DARK
+        pygame.draw.rect(surf, col_grass, (0, int(y0), W, int(y1-y0)+1))
+
+        # Sidewalks
+        sw_w0 = (right0 - left0) * 0.4
+        sw_w1 = (right1 - left1) * 0.4
+        col_side = SIDEWALK_L if stripe == 0 else SIDEWALK
+        
+        poly_l = [(left0 - sw_w0, y0), (left0, y0), (left1, y1), (left1 - sw_w1, y1)]
+        poly_r = [(right0, y0), (right0 + sw_w0, y0), (right1 + sw_w1, y1), (right1, y1)]
+        
+        pygame.draw.polygon(surf, col_side, poly_l)
+        pygame.draw.polygon(surf, col_side, poly_r)
 
 def draw_road(surf, dash_offset=0.0):
     far_left = ROAD_CENTER_X - ROAD_FAR_W // 2
@@ -332,8 +379,7 @@ def draw_road(surf, dash_offset=0.0):
         for k in range(dash_count):
             t0 = ((k / dash_count) + dash_offset) % 1.0
             t1 = ((k + 0.5) / dash_count + dash_offset) % 1.0
-            if t1 < t0:
-                continue
+            if t1 < t0: continue
             y0 = lerp(ROAD_FAR_Y, ROAD_NEAR_Y, t0)
             y1 = lerp(ROAD_FAR_Y, ROAD_NEAR_Y, t1)
             x0 = lerp(x_far_base, x_near_base, t0)
@@ -359,20 +405,61 @@ class Particle:
             pygame.draw.circle(s, (*self.color, 150), (int(self.size), int(self.size)), int(self.size))
             surf.blit(s, (int(self.x), int(self.y)))
 
-class Building:
+class SideObject: # Lanterns
     def __init__(self, side, z):
-        self.side = side
+        self.side = side # -1 Left, 1 Right
         self.z = z
-        self.width_factor = random.uniform(0.8, 1.5)
-        self.height_factor = random.uniform(1.5, 3.5)
-        gray = random.randint(30, 60)
-        self.color = (gray, gray, gray + 10)
-        self.lights = []
-        rows = int(self.height_factor * 3); cols = int(self.width_factor * 2)
-        for r in range(rows):
-            for c in range(cols):
-                if random.random() > 0.4:
-                    self.lights.append((c, r))
+        
+    def update(self, speed):
+        self.z += speed
+
+    def draw(self, surf):
+        y = y_from_z(self.z)
+        scale = lerp(0.22, 1.18, self.z)
+        left_road, right_road = road_edges_at_y(y)
+        offset_x = 10 * scale 
+        if self.side == -1: x = left_road - offset_x
+        else: x = right_road + offset_x
+        self.draw_lantern(surf, x, y, scale)
+
+    def draw_lantern(self, surf, x, y, scale):
+        h = 180 * scale
+        w = 10 * scale
+        pole_rect = pygame.Rect(0,0, max(2, w), h)
+        pole_rect.midbottom = (x, y)
+        pygame.draw.rect(surf, (20,20,20), pole_rect)
+        
+        head_size = 20 * scale
+        direction = -1 if self.side == 1 else 1 
+        lamp_x = x + (direction * (head_size * 0.8))
+        lamp_y = y - h
+        
+        pygame.draw.circle(surf, (20,20,20), (int(x), int(lamp_y)), int(head_size//2))
+        glow_radius = int(35 * scale)
+        if glow_radius > 1:
+            s = pygame.Surface((glow_radius*2, glow_radius*2), pygame.SRCALPHA)
+            pygame.draw.circle(s, (*LANTERN_GLOW, 80), (glow_radius, glow_radius), glow_radius)
+            pygame.draw.circle(s, (255, 255, 255, 150), (glow_radius, glow_radius), int(glow_radius*0.3))
+            surf.blit(s, (lamp_x - glow_radius, lamp_y - glow_radius))
+
+class Building:
+    def __init__(self, side, z, layer=1):
+        self.side = side 
+        self.z = z
+        self.layer = layer # 1 = Front row, 2 = Back row
+        
+        size_mult = 1.0 if layer == 1 else 1.5
+        base_w = int(random.randint(100, 180) * size_mult)
+        base_h = int(random.randint(250, 500) * size_mult)
+        
+        self.original_image = generate_building_surface(base_w, base_h, side)
+        if self.layer == 2:
+            darkener = pygame.Surface((base_w, base_h), pygame.SRCALPHA)
+            darkener.fill((0, 0, 10, 100))
+            self.original_image.blit(darkener, (0,0))
+
+        self.base_w = base_w
+        self.base_h = base_h
 
     def update(self, speed):
         self.z += speed
@@ -380,24 +467,21 @@ class Building:
     def draw(self, surf):
         y = y_from_z(self.z)
         scale = lerp(0.22, 1.18, self.z)
-        base_w_px = 120
-        w = int(base_w_px * self.width_factor * scale)
-        h = int(base_w_px * self.height_factor * scale)
+        w = int(self.base_w * scale)
+        h = int(self.base_h * scale)
         left_road, right_road = road_edges_at_y(y)
-        offset_x = 15 * scale
-        x = (left_road - w - offset_x) if self.side == -1 else (right_road + offset_x)
-        rect = pygame.Rect(x, y - h, w, h)
-        pygame.draw.rect(surf, self.color, rect)
-        pygame.draw.rect(surf, (0,0,0), rect, 1)
-        if self.lights:
-            win_w = w // (int(self.width_factor * 2) + 1)
-            win_h = h // (int(self.height_factor * 3) + 1)
-            if win_w > 1 and win_h > 1:
-                for c, r in self.lights:
-                    wx = rect.x + c * win_w + win_w//2
-                    wy = rect.y + r * win_h + win_h//2
-                    win_col = (255, 220, 50) if (c+r)%3 != 0 else (0, 200, 255)
-                    pygame.draw.rect(surf, win_col, (wx, wy, win_w-1, win_h-1))
+        
+        if self.layer == 1: dist_from_road = 50 * scale
+        else: dist_from_road = 180 * scale 
+
+        if self.side == -1: x = left_road - w - dist_from_road
+        else: x = right_road + dist_from_road
+
+        sink_amount = int(h * 0.05)
+        rect = pygame.Rect(int(x), int(y - h) + sink_amount, w, h)
+        draw_shadow(surf, rect, alpha=100)
+        img = scale_cached(self.original_image, (w, h), SCALE_CACHE)
+        surf.blit(img, rect.topleft)
 
 class Player:
     def __init__(self, image):
@@ -466,20 +550,10 @@ class Player:
 
 class Obstacle:
     def __init__(self, lane, z, kind="car", sprite=None):
-        self.lane = lane
-        self.z = z
-        self.kind = kind
-        self.sprite = sprite
-
-        self.base_w = 75
-        self.base_h = 145
-        if kind == "roadblock":
-            self.base_w = 150
-            self.base_h = 65
-        elif kind == "cone":
-            self.base_w = 34
-            self.base_h = 34
-
+        self.lane = lane; self.z = z; self.kind = kind; self.sprite = sprite
+        self.base_w = 75; self.base_h = 145
+        if kind == "roadblock": self.base_w = 150; self.base_h = 65
+        elif kind == "cone": self.base_w = 34; self.base_h = 34
         self.hp = CAR_MAX_HP if kind == "car" else None
 
     def update(self, dz):
@@ -523,9 +597,7 @@ class Obstacle:
             pygame.draw.rect(surf, (50,50,50), r, 2, border_radius=5)
             for i in range(0, r.w, 20):
                 p1 = (r.left + i, r.bottom); p2 = (r.left + i + 10, r.top)
-                if p2[0] < r.right:
-                    pygame.draw.line(surf, (0,0,0), p1, p2, 6)
-
+                if p2[0] < r.right: pygame.draw.line(surf, (0,0,0), p1, p2, 6)
         elif self.kind == "cone":
             pygame.draw.rect(surf, (255, 100, 0), r)
             mid_rect = pygame.Rect(r.x + 2, r.y + r.h//3, r.w - 4, r.h//3)
@@ -533,24 +605,16 @@ class Obstacle:
 
 class Bullet:
     def __init__(self, lane, z):
-        self.lane = lane
-        self.z = z
-        self.speed = 0.040
-        self.radius = 4
-
-    def update(self):
-        self.z -= self.speed
-
+        self.lane = lane; self.z = z; self.speed = 0.040; self.radius = 4
+    def update(self): self.z -= self.speed
     def get_pos(self):
         y = y_from_z(self.z)
         x = lane_center_x_at_y(self.lane, y)
         return int(x), int(y)
-
     def get_rect(self):
         x, y = self.get_pos()
         r = self.radius
         return pygame.Rect(x - r, y - r, r * 2, r * 2)
-
     def draw(self, surf):
         x, y = self.get_pos()
         pygame.draw.circle(surf, NEON_CYAN, (x, y), self.radius)
@@ -558,19 +622,11 @@ class Bullet:
 
 class Explosion:
     def __init__(self, x, y, z):
-        self.x = x
-        self.y = y
-        self.z = z
-        self.frame = 0.0
-        self.frame_speed = 0.85
-
-    def update(self):
-        self.frame += self.frame_speed
-
+        self.x = x; self.y = y; self.z = z; self.frame = 0.0; self.frame_speed = 0.85
+    def update(self): self.frame += self.frame_speed
     def draw(self, surf):
         idx = int(self.frame)
-        if idx >= len(EXPLOSION_FRAMES):
-            return
+        if idx >= len(EXPLOSION_FRAMES): return
         img = EXPLOSION_FRAMES[idx]
         scale = lerp(0.35, 1.35, self.z)
         w = max(2, int(img.get_width() * scale))
@@ -578,24 +634,19 @@ class Explosion:
         img_s = scale_cached(img, (w, h), SCALE_CACHE)
         rect = img_s.get_rect(center=(self.x, self.y))
         surf.blit(img_s, rect.topleft)
-
-    def done(self):
-        return int(self.frame) >= len(EXPLOSION_FRAMES)
+    def done(self): return int(self.frame) >= len(EXPLOSION_FRAMES)
 
 def choose_spawn_pattern(obstacles, z_spawn):
     occupied_lanes = []
     for o in obstacles:
         if abs(o.z - z_spawn) < 0.15:
             occupied_lanes.append(o.lane)
-            if o.kind == "roadblock":
-                occupied_lanes.append(o.lane + 1)
+            if o.kind == "roadblock": occupied_lanes.append(o.lane + 1)
     available_lanes = [l for l in range(LANES) if l not in occupied_lanes]
-    if not available_lanes:
-        return []
+    if not available_lanes: return []
     if len(available_lanes) >= 2 and random.random() < 0.05:
         lane = random.choice(available_lanes[:-1])
-        if (lane + 1) in available_lanes:
-            return [(lane, "roadblock")]
+        if (lane + 1) in available_lanes: return [(lane, "roadblock")]
     count = 2 if (len(available_lanes) > 1 and random.random() < 0.1) else 1
     chosen = random.sample(available_lanes, count)
     new_obs = []
@@ -605,11 +656,9 @@ def choose_spawn_pattern(obstacles, z_spawn):
     return new_obs
 
 def draw_boost_warp(surf, intensity, origin=None):
-    if intensity <= 0:
-        return
+    if intensity <= 0: return
     w, h = surf.get_size()
-    if origin is None:
-        origin = (w // 2, h // 2)
+    if origin is None: origin = (w // 2, h // 2)
     ox, oy = origin
     overlay = pygame.Surface((w, h), pygame.SRCALPHA)
     n = int(10 + 22 * intensity)
@@ -636,26 +685,16 @@ def draw_boost_warp(surf, intensity, origin=None):
     surf.blit(overlay, (0, 0))
 
 def draw_info_overlay(target_surf, info_alpha, started, alive, paused, counting_down, ammo, reloading):
-    """No panel, no borders: just darken + text."""
-    if info_alpha <= 1:
-        return
-
+    if info_alpha <= 1: return
     a = int(info_alpha)
-
-    # darken whole screen
     overlay = pygame.Surface((W, H), pygame.SRCALPHA)
     overlay.fill((0, 0, 0, int(190 * (a / 255.0))))
     target_surf.blit(overlay, (0, 0))
-
-    # text block (centered-ish)
     cx = W // 2
     top = H // 2 - 240
-
     draw_text_with_outline(target_surf, "CONTROLS", BIG_FONT, WHITE, (cx, top), center=True)
     y = top + 80
-
     reload_sec = RELOAD_TIME / 60.0
-
     lines = [
         ("Move left",  "LEFT / A"),
         ("Move right", "RIGHT / D"),
@@ -672,13 +711,9 @@ def draw_info_overlay(target_surf, info_alpha, started, alive, paused, counting_
         ("Magazine size", f"{MAG_SIZE} shots"),
         ("Reload time", f"{reload_sec:.1f}s"),
     ]
-
-    # column positions
     lx = cx - 300
     rx = cx + 60
-
     key_font = pygame.font.SysFont("Arial", 22, bold=True)
-
     for left, right in lines:
         if left == "" and right == "":
             y += 16
@@ -690,61 +725,33 @@ def draw_info_overlay(target_surf, info_alpha, started, alive, paused, counting_
         draw_text_with_outline(target_surf, left, FONT, WHITE, (lx, y))
         draw_text_with_outline(target_surf, right, key_font, WHITE, (rx, y))
         y += 30
-
-    # dynamic status line
     status = []
-    if not started:
-        status.append("Menu")
+    if not started: status.append("Menu")
     else:
-        if counting_down:
-            status.append("Countdown")
-        elif not alive:
-            status.append("Crashed")
-        elif paused:
-            status.append("Paused")
-        else:
-            status.append("Racing")
-
+        if counting_down: status.append("Countdown")
+        elif not alive: status.append("Crashed")
+        elif paused: status.append("Paused")
+        else: status.append("Racing")
     if started and alive and (not counting_down):
-        if reloading:
-            status.append("Reloading…")
-        else:
-            status.append(f"Ammo {ammo}/{MAG_SIZE}")
-
-    draw_text_with_outline(
-        target_surf,
-        " | ".join(status),
-        SMALL_FONT,
-        (200, 200, 200),
-        (lx, H - 110)
-    )
-    draw_text_with_outline(
-        target_surf,
-        "Click anywhere or press ESC / I to close",
-        SMALL_FONT,
-        (200, 200, 200),
-        (lx, H - 85)
-    )
+        if reloading: status.append("Reloading…")
+        else: status.append(f"Ammo {ammo}/{MAG_SIZE}")
+    draw_text_with_outline(target_surf, " | ".join(status), SMALL_FONT, (200, 200, 200), (lx, H - 110))
+    draw_text_with_outline(target_surf, "Click anywhere or press ESC / I to close", SMALL_FONT, (200, 200, 200), (lx, H - 85))
 
 def draw_ammo_hud(frame, ammo, reloading):
     hud_x, hud_y = 20, 92
-
     if reloading:
         draw_text_with_outline(frame, "RELOADING...", FONT, NEON_RED, (hud_x, hud_y))
         hud_y += 28
-
     icon_h = 38
     icon_w = int(MAG_ICON.get_width() * (icon_h / max(1, MAG_ICON.get_height())))
     mag_icon_s = scale_cached(MAG_ICON, (icon_w, icon_h), SCALE_CACHE)
     frame.blit(mag_icon_s, (hud_x, hud_y))
-
     pip_x = hud_x + icon_w + 12
     pip_y = hud_y + 8
     pip_w, pip_h, pip_gap = 10, 20, 4
     total_w = MAG_SIZE * (pip_w + pip_gap) - pip_gap
-
     pygame.draw.rect(frame, (0, 0, 0), (pip_x - 6, pip_y - 6, total_w + 12, pip_h + 12), border_radius=6)
-
     for i in range(MAG_SIZE):
         x = pip_x + i * (pip_w + pip_gap)
         col = NEON_CYAN if i < ammo else (60, 60, 70)
@@ -754,8 +761,6 @@ def draw_ammo_hud(frame, ammo, reloading):
 def main():
     bullets = []
     explosions = []
-
-    # screen shake
     shake_frames = 0
     shake_strength = 0
 
@@ -767,51 +772,45 @@ def main():
     player = None
     selected_car_idx = 0
     obstacles = []
-    buildings = []
+    buildings = [] # Stores both Buildings and SideObjects (Lanterns)
+    
     score = 0
     last_score = 0
     alive = True
     paused = False
     started = False
-
     counting_down = False
     countdown_timer = 0
     countdown_stage = 3
-
     base_speed = 0.0015
     speed_ramp = 0.0000002
     speed = base_speed
-
     dash_offset = 0.0
     spawn_progress = 0.0
+    
+    # New Spawn logic vars
     building_spawn_progress = 0.0
     spawn_threshold = 0.45
 
-    # shooting / ammo
     shoot_cooldown = 0
     ammo = MAG_SIZE
     reloading = False
     reload_timer = 0
-
-    # --- INFO OVERLAY (fade + dynamic) ---
     show_info = False
     info_alpha = 0.0
     INFO_FADE_SPEED = 900.0
 
     def toggle_info(open_it=None):
         nonlocal show_info
-        if open_it is None:
-            show_info = not show_info
-        else:
-            show_info = bool(open_it)
+        if open_it is None: show_info = not show_info
+        else: show_info = bool(open_it)
 
     if os.path.exists(MUSIC_PATH):
         try:
             pygame.mixer.music.load(MUSIC_PATH)
             pygame.mixer.music.set_volume(0.5)
             pygame.mixer.music.play(-1)
-        except:
-            pass
+        except: pass
 
     enemy_cycle_i = 0
     btn_w, btn_h = 200, 50
@@ -831,269 +830,177 @@ def main():
     btn_quit_menu = pygame.Rect(center_x, H // 2 + 140, btn_w, btn_h)
     btn_restart = pygame.Rect(center_x, H // 2 + 40, btn_w, btn_h)
     btn_quit_over = pygame.Rect(center_x, H // 2 + 120, btn_w, btn_h)
-
-    # info button top-right
     btn_info = pygame.Rect(W - 70, 20, 50, 50)
 
     while True:
         dt = clock.tick(60)
         dt_s = dt / 1000.0
-
-        # fade update (always)
         target = 255.0 if show_info else 0.0
-        if info_alpha < target:
-            info_alpha = min(target, info_alpha + INFO_FADE_SPEED * dt_s)
-        elif info_alpha > target:
-            info_alpha = max(target, info_alpha - INFO_FADE_SPEED * dt_s)
+        if info_alpha < target: info_alpha = min(target, info_alpha + INFO_FADE_SPEED * dt_s)
+        elif info_alpha > target: info_alpha = max(target, info_alpha - INFO_FADE_SPEED * dt_s)
 
         for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                pygame.quit()
-                sys.exit()
-
+            if event.type == pygame.QUIT: pygame.quit(); sys.exit()
             if event.type == pygame.MOUSEBUTTONDOWN:
-                # if info overlay visible, clicking anywhere closes it (and doesn't click through)
-                if info_alpha > 5:
-                    toggle_info(False)
-                    continue
-
-                if btn_info.collidepoint(event.pos):
-                    toggle_info()
-                    continue
-
+                if info_alpha > 5: toggle_info(False); continue
+                if btn_info.collidepoint(event.pos): toggle_info(); continue
                 if not started:
                     for i, r in enumerate(car_rects):
-                        if r.collidepoint(event.pos):
-                            selected_car_idx = i
+                        if r.collidepoint(event.pos): selected_car_idx = i
                     if btn_play.collidepoint(event.pos):
-                        started = True
-                        counting_down = True
-                        countdown_stage = 3
-                        countdown_timer = 60
+                        started = True; counting_down = True; countdown_stage = 3; countdown_timer = 60
                         player = Player(PLAYER_DRIVE_SPRITES[selected_car_idx])
-                        ammo = MAG_SIZE
-                        reloading = False
-                        reload_timer = 0
-                        paused = False
-                        alive = True
-                        score = 0
-                        last_score = 0
-                        bullets.clear()
-                        explosions.clear()
-                        obstacles.clear()
-                        buildings.clear()
-                    if btn_quit_menu.collidepoint(event.pos):
-                        pygame.quit()
-                        sys.exit()
+                        ammo = MAG_SIZE; reloading = False; reload_timer = 0
+                        paused = False; alive = True; score = 0; last_score = 0
+                        bullets.clear(); explosions.clear(); obstacles.clear(); buildings.clear()
+                    if btn_quit_menu.collidepoint(event.pos): pygame.quit(); sys.exit()
                 elif not alive:
-                    if btn_restart.collidepoint(event.pos):
-                        return main()
-                    if btn_quit_over.collidepoint(event.pos):
-                        pygame.quit()
-                        sys.exit()
-
+                    if btn_restart.collidepoint(event.pos): return main()
+                    if btn_quit_over.collidepoint(event.pos): pygame.quit(); sys.exit()
             if event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_q:
-                    pygame.quit()
-                    sys.exit()
-
-                if event.key == pygame.K_i:
-                    toggle_info()
-                    continue
-
+                if event.key == pygame.K_q: pygame.quit(); sys.exit()
+                if event.key == pygame.K_i: toggle_info(); continue
                 if event.key == pygame.K_ESCAPE:
-                    if info_alpha > 5 or show_info:
-                        toggle_info(False)
-                        continue
-                    if started and alive and (not counting_down):
-                        paused = not paused
+                    if info_alpha > 5 or show_info: toggle_info(False); continue
+                    if started and alive and (not counting_down): paused = not paused
                     continue
-
                 if not started:
-                    if event.key == pygame.K_LEFT:
-                        selected_car_idx = max(0, selected_car_idx - 1)
-                    if event.key == pygame.K_RIGHT:
-                        selected_car_idx = min(len(PLAYER_MENU_VIEWS)-1, selected_car_idx + 1)
+                    if event.key == pygame.K_LEFT: selected_car_idx = max(0, selected_car_idx - 1)
+                    if event.key == pygame.K_RIGHT: selected_car_idx = min(len(PLAYER_MENU_VIEWS)-1, selected_car_idx + 1)
                     if event.key in (pygame.K_SPACE, pygame.K_RETURN):
-                        started = True
-                        counting_down = True
-                        countdown_stage = 3
-                        countdown_timer = 60
+                        started = True; counting_down = True; countdown_stage = 3; countdown_timer = 60
                         player = Player(PLAYER_DRIVE_SPRITES[selected_car_idx])
-                        ammo = MAG_SIZE
-                        reloading = False
-                        reload_timer = 0
-                        paused = False
-                        alive = True
-                        score = 0
-                        last_score = 0
-                        bullets.clear()
-                        explosions.clear()
-                        obstacles.clear()
-                        buildings.clear()
-
+                        ammo = MAG_SIZE; reloading = False; reload_timer = 0
+                        paused = False; alive = True; score = 0; last_score = 0
+                        bullets.clear(); explosions.clear(); obstacles.clear(); buildings.clear()
                 elif alive and not counting_down:
                     if not paused:
-                        if event.key in (pygame.K_LEFT, pygame.K_a):
-                            player.move_left()
-                        if event.key in (pygame.K_RIGHT, pygame.K_d):
-                            player.move_right()
-
+                        if event.key in (pygame.K_LEFT, pygame.K_a): player.move_left()
+                        if event.key in (pygame.K_RIGHT, pygame.K_d): player.move_right()
                         if event.key == pygame.K_SPACE:
                             if (not reloading) and ammo > 0 and shoot_cooldown <= 0:
                                 bullets.append(Bullet(player.lane, player.z - 0.08))
-                                shoot_cooldown = 10
-                                ammo -= 1
-                                if ammo <= 0:
-                                    reloading = True
-                                    reload_timer = RELOAD_TIME
-
+                                shoot_cooldown = 10; ammo -= 1
+                                if ammo <= 0: reloading = True; reload_timer = RELOAD_TIME
                 else:
-                    if event.key == pygame.K_r:
-                        return main()
+                    if event.key == pygame.K_r: return main()
 
         keys = pygame.key.get_pressed()
-
-        # update shake
         cam_dx = cam_dy = 0
         if shake_frames > 0:
             cam_dx = random.randint(-shake_strength, shake_strength)
             cam_dy = random.randint(-shake_strength, shake_strength)
             shake_frames -= 1
-            if shake_frames <= 0:
-                shake_strength = 0
-
-        if shoot_cooldown > 0:
-            shoot_cooldown -= 1
-
-        # reload update
+            if shake_frames <= 0: shake_strength = 0
+        if shoot_cooldown > 0: shoot_cooldown -= 1
         if started and alive and (not paused) and (not counting_down):
             if reloading:
                 reload_timer -= 1
-                if reload_timer <= 0:
-                    reloading = False
-                    ammo = MAG_SIZE
+                if reload_timer <= 0: reloading = False; ammo = MAG_SIZE
 
         if started and alive and not paused:
             if counting_down:
                 countdown_timer -= 1
                 if countdown_timer <= 0:
-                    countdown_stage -= 1
-                    countdown_timer = 60
-                    if countdown_stage < 0:
-                        counting_down = False
+                    countdown_stage -= 1; countdown_timer = 60
+                    if countdown_stage < 0: counting_down = False
             else:
                 boosting = keys[pygame.K_UP] or keys[pygame.K_w]
                 braking = keys[pygame.K_DOWN] or keys[pygame.K_s]
                 target_speed = base_speed * 1.5 if boosting else (base_speed * 0.7 if braking else base_speed)
                 speed = lerp(speed, target_speed, 0.1)
-
                 if SOUND_ENGINE:
                     if boosting and alive:
-                        if SOUND_ENGINE.get_num_channels() == 0:
-                            SOUND_ENGINE.play(-1)
-                    else:
-                        SOUND_ENGINE.stop()
-
+                        if SOUND_ENGINE.get_num_channels() == 0: SOUND_ENGINE.play(-1)
+                    else: SOUND_ENGINE.stop()
                 player.update(boosting)
                 score += 1 + int(speed * 1000)
                 base_speed += speed_ramp * dt
 
+                # Obstacle Spawning
                 spawn_progress += speed
                 if spawn_progress > spawn_threshold:
-                    spawn_progress = 0
-                    z_spawn = Z_SPAWN_MIN
+                    spawn_progress = 0; z_spawn = Z_SPAWN_MIN
                     pattern = choose_spawn_pattern(obstacles, z_spawn)
                     for lane, kind in pattern:
                         sprite = None
                         if kind == "car":
-                            sprite = IMG_ENEMIES[enemy_cycle_i]
-                            enemy_cycle_i = (enemy_cycle_i + 1) % len(IMG_ENEMIES)
+                            sprite = IMG_ENEMIES[enemy_cycle_i]; enemy_cycle_i = (enemy_cycle_i + 1) % len(IMG_ENEMIES)
                         obstacles.append(Obstacle(lane, z_spawn, kind, sprite))
 
+                # Building & Lantern Spawning (Layered Logic)
                 building_spawn_progress += speed
-                if building_spawn_progress > 0.12:
+                if building_spawn_progress > 0.10: 
                     building_spawn_progress = 0
-                    min_gap = 0.2
-                    left_occupied = any(b.side == -1 and abs(b.z - Z_SPAWN_MIN) < min_gap for b in buildings)
-                    if not left_occupied and random.random() < 0.7:
-                        buildings.append(Building(-1, Z_SPAWN_MIN))
-                    right_occupied = any(b.side == 1 and abs(b.z - Z_SPAWN_MIN) < min_gap for b in buildings)
-                    if not right_occupied and random.random() < 0.7:
-                        buildings.append(Building(1, Z_SPAWN_MIN))
+                    
+                    # 1. Lanterns
+                    if random.random() < 0.6:
+                         if not any(isinstance(b, SideObject) and b.side == -1 and abs(b.z - Z_SPAWN_MIN) < 0.1 for b in buildings):
+                             buildings.append(SideObject(-1, Z_SPAWN_MIN))
+                         if not any(isinstance(b, SideObject) and b.side == 1 and abs(b.z - Z_SPAWN_MIN) < 0.1 for b in buildings):
+                             buildings.append(SideObject(1, Z_SPAWN_MIN))
+
+                    # 2. Front Buildings (Layer 1)
+                    if random.random() < 0.4:
+                        if not any(isinstance(b, Building) and b.layer == 1 and b.side == -1 and abs(b.z - Z_SPAWN_MIN) < 0.2 for b in buildings):
+                            buildings.append(Building(-1, Z_SPAWN_MIN, layer=1))
+                        if not any(isinstance(b, Building) and b.layer == 1 and b.side == 1 and abs(b.z - Z_SPAWN_MIN) < 0.2 for b in buildings):
+                            buildings.append(Building(1, Z_SPAWN_MIN, layer=1))
+                            
+                    # 3. Back Buildings (Layer 2)
+                    if random.random() < 0.5:
+                        if not any(isinstance(b, Building) and b.layer == 2 and b.side == -1 and abs(b.z - Z_SPAWN_MIN) < 0.15 for b in buildings):
+                            buildings.append(Building(-1, Z_SPAWN_MIN, layer=2))
+                        if not any(isinstance(b, Building) and b.layer == 2 and b.side == 1 and abs(b.z - Z_SPAWN_MIN) < 0.15 for b in buildings):
+                            buildings.append(Building(1, Z_SPAWN_MIN, layer=2))
 
                 p_rect = player.get_rect()
-
                 for b in buildings[:]:
                     b.update(speed)
-                    if b.z > 1.3:
-                        buildings.remove(b)
-
+                    if b.z > 1.3: buildings.remove(b)
                 for obs in obstacles[:]:
                     obs.update(speed)
-                    if obs.z > 1.3:
-                        obstacles.remove(obs)
-                        continue
+                    if obs.z > 1.3: obstacles.remove(obs); continue
                     if 0.85 < obs.z < 1.0:
                         o_rect = obs.get_rect()
                         hitbox = o_rect.inflate(-15, -15)
                         if p_rect.colliderect(hitbox):
-                            alive = False
-                            last_score = score
-                            if SOUND_ENGINE:
-                                SOUND_ENGINE.stop()
+                            alive = False; last_score = score
+                            if SOUND_ENGINE: SOUND_ENGINE.stop()
                             explosions.append(Explosion(p_rect.centerx, p_rect.centery, player.z))
                             start_shake(22, 10)
-
                 for blt in bullets[:]:
                     blt.update()
-                    if blt.z < 0.02:
-                        bullets.remove(blt)
-
+                    if blt.z < 0.02: bullets.remove(blt)
                 for blt in bullets[:]:
                     brect = blt.get_rect()
                     hit_any = False
                     for obs in obstacles[:]:
                         orect = obs.get_rect()
-                        if not brect.colliderect(orect):
-                            continue
+                        if not brect.colliderect(orect): continue
                         hit_any = True
                         if obs.kind == "car":
-                            obs.hp -= 1
-                            score += 40
+                            obs.hp -= 1; score += 40
                             if obs.hp <= 0:
                                 explosions.append(Explosion(orect.centerx, orect.centery, obs.z))
-                                start_shake(12, 7)
-                                obstacles.remove(obs)
-                                score += 300
+                                start_shake(12, 7); obstacles.remove(obs); score += 300
                         else:
                             explosions.append(Explosion(orect.centerx, orect.centery, obs.z))
-                            start_shake(8, 5)
-                            obstacles.remove(obs)
-                            score += 100
+                            start_shake(8, 5); obstacles.remove(obs); score += 100
                         break
-                    if hit_any and blt in bullets:
-                        bullets.remove(blt)
-
+                    if hit_any and blt in bullets: bullets.remove(blt)
                 for ex in explosions[:]:
                     ex.update()
-                    if ex.done():
-                        explosions.remove(ex)
-
+                    if ex.done(): explosions.remove(ex)
                 dash_offset = (dash_offset + speed * 2.0) % 1.0
         else:
             for ex in explosions[:]:
                 ex.update()
-                if ex.done():
-                    explosions.remove(ex)
+                if ex.done(): explosions.remove(ex)
 
-        # --- RENDER ---
         if not started:
-            if IMG_POSTER:
-                screen.blit(IMG_POSTER, (0, 0))
-            else:
-                screen.fill((0, 0, 0))
-
+            if IMG_POSTER: screen.blit(IMG_POSTER, (0, 0))
+            else: screen.fill((0, 0, 0))
             for i, menu_img in enumerate(PLAYER_MENU_VIEWS):
                 rect = car_rects[i]
                 s = pygame.Surface((rect.width, rect.height), pygame.SRCALPHA)
@@ -1102,70 +1009,46 @@ def main():
                 g = pygame.Surface((rect.width, rect.height // 2), pygame.SRCALPHA)
                 pygame.draw.rect(g, (255, 255, 255, 15), g.get_rect(), border_top_left_radius=10, border_top_right_radius=10)
                 screen.blit(g, rect.topleft)
-
-                iw, ih = menu_img.get_size()
-                aspect = iw / ih
-                target_w = rect.width - 20
-                target_h = int(target_w / aspect)
-                if target_h > rect.height - 40:
-                    target_h = rect.height - 40
-                    target_w = int(target_h * aspect)
+                iw, ih = menu_img.get_size(); aspect = iw / ih
+                target_w = rect.width - 20; target_h = int(target_w / aspect)
+                if target_h > rect.height - 40: target_h = rect.height - 40; target_w = int(target_h * aspect)
                 menu_car_img = pygame.transform.smoothscale(menu_img, (target_w, target_h))
                 img_rect = menu_car_img.get_rect(center=rect.center)
-
                 if i == selected_car_idx:
                     glow_rect = rect.inflate(10, 10)
                     pygame.draw.rect(screen, NEON_CYAN, glow_rect, 3, border_radius=12)
                     s_glow = pygame.Surface((rect.width, rect.height), pygame.SRCALPHA)
                     pygame.draw.rect(s_glow, (0, 255, 255, 30), s_glow.get_rect(), border_radius=10)
                     screen.blit(s_glow, rect.topleft)
-                else:
-                    pygame.draw.rect(screen, (60, 70, 90), rect, 2, border_radius=10)
-
+                else: pygame.draw.rect(screen, (60, 70, 90), rect, 2, border_radius=10)
                 screen.blit(menu_car_img, img_rect.topleft)
-
             draw_button(screen, btn_play, "PLAY")
             draw_button(screen, btn_quit_menu, "QUIT", is_danger=True)
-
             draw_button(screen, btn_info, "i" if info_alpha < 5 else "X", is_danger=(info_alpha >= 5))
             draw_info_overlay(screen, info_alpha, started, alive, paused, counting_down, ammo, reloading)
-
-            pygame.display.flip()
-            continue
+            pygame.display.flip(); continue
 
         frame = pygame.Surface((W, H))
         draw_background_and_terrain(frame, dash_offset)
+        
+        # Sort buildings (and lanterns) by Z depth
         buildings.sort(key=lambda b: b.z)
-        for b in buildings:
-            b.draw(frame)
+        for b in buildings: b.draw(frame)
 
         draw_road(frame, dash_offset)
-
         obstacles.sort(key=lambda o: -o.z)
-        for obs in obstacles:
-            obs.draw(frame)
-
-        for blt in bullets:
-            blt.draw(frame)
-
-        if player:
-            player.draw(frame)
-
-        for ex in explosions:
-            ex.draw(frame)
-
+        for obs in obstacles: obs.draw(frame)
+        for blt in bullets: blt.draw(frame)
+        if player: player.draw(frame)
+        for ex in explosions: ex.draw(frame)
         draw_text_with_outline(frame, f"SCORE: {score}", FONT, WHITE, (20, 20))
         speed_pct = min(1.0, (speed / 0.01))
         pygame.draw.rect(frame, (50, 50, 50), (20, 60, 200, 20), border_radius=5)
         pygame.draw.rect(frame, NEON_CYAN, (20, 60, int(200 * speed_pct), 20), border_radius=5)
         draw_text_with_outline(frame, "SPEED", SMALL_FONT, WHITE, (25, 62))
-
-        if started:
-            draw_ammo_hud(frame, ammo, reloading)
-
-        if counting_down:
-            draw_countdown_lights(frame, countdown_stage)
-
+        if started: draw_ammo_hud(frame, ammo, reloading)
+        if counting_down: draw_countdown_lights(frame, countdown_stage)
+        
         if not alive:
             s = pygame.Surface((W, H), pygame.SRCALPHA)
             s.fill((50, 0, 0, 200))
@@ -1176,49 +1059,36 @@ def main():
             frame.blit(score_txt, (W//2 - score_txt.get_width()//2, H//2 - 30))
             draw_button(frame, btn_restart, "RESTART")
             draw_button(frame, btn_quit_over, "QUIT", is_danger=True)
-
         elif paused:
             s = pygame.Surface((W, H), pygame.SRCALPHA)
             s.fill((0, 0, 0, 150))
             frame.blit(s, (0, 0))
             txt = BIG_FONT.render("PAUZE", True, WHITE)
             frame.blit(txt, (W//2 - txt.get_width()//2, H//2))
-
         draw_button(frame, btn_info, "i" if info_alpha < 5 else "X", is_danger=(info_alpha >= 5))
         draw_info_overlay(frame, info_alpha, started, alive, paused, counting_down, ammo, reloading)
 
-        # --- BOOST EFFECT (ONLY while accelerating) ---
         car_origin = None
         if player:
             pr = player.get_rect()
             car_origin = (pr.centerx, pr.centery - int(pr.h * 0.25))
-
         boosting_now = False
         if started and alive and (not paused) and (not counting_down) and (info_alpha <= 5):
             boosting_now = (keys[pygame.K_UP] or keys[pygame.K_w])
-
         final_frame = frame
-
         if boosting_now:
             speed_pct = min(1.0, (speed / 0.01))
             boost_intensity = clamp(speed_pct, 0.0, 1.0)
-
             ghost = frame.copy()
             ghost.blit(frame, (0, 6))
             ghost.set_alpha(int(60 + 90 * boost_intensity))
             frame.blit(ghost, (0, 0))
-
-            if car_origin:
-                draw_boost_warp(frame, boost_intensity, origin=car_origin)
-
+            if car_origin: draw_boost_warp(frame, boost_intensity, origin=car_origin)
             zoom = 1.0 + (0.06 * boost_intensity)
-            zoom_w = int(W * zoom)
-            zoom_h = int(H * zoom)
+            zoom_w = int(W * zoom); zoom_h = int(H * zoom)
             zoomed = pygame.transform.smoothscale(frame, (zoom_w, zoom_h))
-            crop_x = (zoom_w - W) // 2
-            crop_y = (zoom_h - H) // 2
+            crop_x = (zoom_w - W) // 2; crop_y = (zoom_h - H) // 2
             final_frame = zoomed.subsurface((crop_x, crop_y, W, H))
-
         screen.fill((0, 0, 0))
         screen.blit(final_frame, (cam_dx, cam_dy))
         pygame.display.flip()
