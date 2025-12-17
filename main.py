@@ -405,9 +405,9 @@ class Particle:
             pygame.draw.circle(s, (*self.color, 150), (int(self.size), int(self.size)), int(self.size))
             surf.blit(s, (int(self.x), int(self.y)))
 
-class SideObject: # Lanterns
+class SideObject: # Verbeterde Lantaarnpalen
     def __init__(self, side, z):
-        self.side = side # -1 Left, 1 Right
+        self.side = side # -1 Links, 1 Rechts
         self.z = z
         
     def update(self, speed):
@@ -415,32 +415,113 @@ class SideObject: # Lanterns
 
     def draw(self, surf):
         y = y_from_z(self.z)
-        scale = lerp(0.22, 1.18, self.z)
-        left_road, right_road = road_edges_at_y(y)
-        offset_x = 10 * scale 
-        if self.side == -1: x = left_road - offset_x
-        else: x = right_road + offset_x
-        self.draw_lantern(surf, x, y, scale)
+        # We stoppen iets eerder met tekenen als het te dichtbij is, 
+        # anders flitst het door het scherm heen
+        if self.z > 1.2: return 
 
-    def draw_lantern(self, surf, x, y, scale):
-        h = 180 * scale
-        w = 10 * scale
-        pole_rect = pygame.Rect(0,0, max(2, w), h)
-        pole_rect.midbottom = (x, y)
-        pygame.draw.rect(surf, (20,20,20), pole_rect)
+        scale = lerp(0.22, 1.18, self.z)
         
-        head_size = 20 * scale
-        direction = -1 if self.side == 1 else 1 
-        lamp_x = x + (direction * (head_size * 0.8))
-        lamp_y = y - h
+        # Positie bepalen
+        left_road, right_road = road_edges_at_y(y)
+        offset_x = 25 * scale # Iets verder van de weg af
         
-        pygame.draw.circle(surf, (20,20,20), (int(x), int(lamp_y)), int(head_size//2))
-        glow_radius = int(35 * scale)
-        if glow_radius > 1:
-            s = pygame.Surface((glow_radius*2, glow_radius*2), pygame.SRCALPHA)
-            pygame.draw.circle(s, (*LANTERN_GLOW, 80), (glow_radius, glow_radius), glow_radius)
-            pygame.draw.circle(s, (255, 255, 255, 150), (glow_radius, glow_radius), int(glow_radius*0.3))
-            surf.blit(s, (lamp_x - glow_radius, lamp_y - glow_radius))
+        if self.side == -1: 
+            x = left_road - offset_x
+        else: 
+            x = right_road + offset_x
+            
+        self.draw_highway_lamp(surf, x, y, scale)
+
+    def draw_highway_lamp(self, surf, x, y, scale):
+        # --- CONFIGURATIE ---
+        pole_color = (40, 44, 50) # Donkergrijs metaal
+        light_housing_color = (70, 75, 80) # Iets lichter grijs voor de bak
+        
+        # Maten
+        pole_h = 260 * scale
+        pole_w = max(2, 7 * scale)
+        arm_width = 70 * scale
+        
+        # Richting bepalen (arm moet naar de weg wijzen)
+        direction = 1 if self.side == -1 else -1
+        
+        # 1. DE PAAL (Tapered: breed onder, smal boven)
+        # We tekenen een polygoon voor een taps toelopende paal
+        base_half_w = pole_w * 0.8
+        top_half_w = pole_w * 0.4
+        
+        poly_pole = [
+            (x - base_half_w, y),           # Linksonder
+            (x - top_half_w, y - pole_h),   # Linksboven
+            (x + top_half_w, y - pole_h),   # Rechtsboven
+            (x + base_half_w, y)            # Rechtsonder
+        ]
+        pygame.draw.polygon(surf, pole_color, poly_pole)
+        
+        # 2. DE ARM (Schuin omhoog)
+        arm_start_x = x
+        arm_start_y = y - pole_h + (2 * scale)
+        
+        # Het uiteinde van de arm
+        arm_end_x = x + (direction * arm_width)
+        arm_end_y = arm_start_y - (15 * scale) # Arm loopt iets omhoog
+        
+        pygame.draw.line(surf, pole_color, (arm_start_x, arm_start_y), (arm_end_x, arm_end_y), int(max(2, 5 * scale)))
+        
+        # 3. DE LAMP-BEHUIZING (Trapezium vorm)
+        # Dit ziet er realistischer uit dan een blokje
+        head_w = 28 * scale
+        head_h = 10 * scale
+        
+        # Coördinaten van de lampkop (hangt aan het eind van de arm)
+        hx = arm_end_x
+        hy = arm_end_y
+        
+        # Een trapezium vorm tekenen
+        poly_head = [
+            (hx - (head_w/2), hy),              # Boven-links
+            (hx + (head_w/2), hy),              # Boven-rechts
+            (hx + (head_w/2 * 0.7), hy + head_h), # Onder-rechts (iets smaller)
+            (hx - (head_w/2 * 0.7), hy + head_h)  # Onder-links (iets smaller)
+        ]
+        pygame.draw.polygon(surf, light_housing_color, poly_head)
+        
+        # 4. HET LICHT (Kegel effect + Flare)
+        
+        # De 'bulb' zelf (klein fel wit streepje onderaan de behuizing)
+        bulb_rect = pygame.Rect(0, 0, head_w * 0.6, 3 * scale)
+        bulb_rect.center = (hx, hy + head_h)
+        pygame.draw.rect(surf, (255, 255, 240), bulb_rect)
+        
+        # GLOW EFFECT
+        # We maken de glow veel subtieler en kegelvormig (omlaag schijnend)
+        glow_size = 20 * scale # Hoe ver het licht reikt
+        
+        # Maak een surface voor de glow
+        glow_surf = pygame.Surface((int(glow_size), int(glow_size)), pygame.SRCALPHA)
+        
+        # We tekenen een ovale gloed die omlaag is gerekt ("Floodlight" effect)
+        # Kleur: Warm wit/geel, heel transparant (alpha 20-40)
+        glow_center = (glow_size//2, 0) # Licht begint bovenin de surface
+        
+        # Grote zachte kegel
+        rect_glow = pygame.Rect(0, 0, glow_size, glow_size)
+        pygame.draw.ellipse(glow_surf, (*LANTERN_GLOW, 25), rect_glow)
+        
+        # Kleinere felle kern
+        rect_core = pygame.Rect(glow_size*0.25, 0, glow_size*0.5, glow_size*0.6)
+        pygame.draw.ellipse(glow_surf, (255, 255, 255, 40), rect_core)
+        
+        # Roteren kan lastig zijn met surfaces, dus we blitten hem gecentreerd onder de lamp
+        # We positioneren de glow surface zodat de bovenkant bij de lamp begint
+        dest_x = hx - (glow_size // 2)
+        dest_y = hy + head_h - (10 * scale) # Iets omhoog schuiven zodat de kern in de lamp zit
+        
+        # Blit met ADD blending voor het licht-effect
+        surf.blit(glow_surf, (dest_x, dest_y), special_flags=pygame.BLEND_ADD)
+        
+        # Lens flare (optioneel, klein wit stipje voor de felheid)
+        pygame.draw.circle(surf, (255, 255, 255), (int(hx), int(hy + head_h)), int(3 * scale))
 
 class Building:
     def __init__(self, side, z, layer=1):

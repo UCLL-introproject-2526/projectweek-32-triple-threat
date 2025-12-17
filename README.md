@@ -7,6 +7,7 @@ TODO
     - auto/optrekken 
     - menu geluiden 
     - apart muziekske menu en game
+- [ ] Info tekst (startscherm)
 - [X] countdown stoplicht
 - [ ] Info tekst (startscherm)
 - [ ] highscore 
