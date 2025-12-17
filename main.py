@@ -6,8 +6,8 @@ import json
 
 # --- PATH CONFIGURATION ---
 BASE_DIR = os.path.dirname(__file__)
-ASSETS_DIR = os.path.join(BASE_DIR, "assets")
-SOUND_DIR = os.path.join(BASE_DIR, "sound")
+ASSETS_DIR = os.path.join(BASE_DIR, "assets/images")
+SOUND_DIR = os.path.join(BASE_DIR, "assets/sound")
 LEADERBOARD_FILE = os.path.join(BASE_DIR, "leaderboard.json")
 
 def load_image(name):
@@ -99,17 +99,17 @@ SMALL_FONT = pygame.font.SysFont("Arial", 16, bold=True)
 INFO_FONT = pygame.font.SysFont("Times New Roman", 30, bold=True)
 
 # --- ASSETS LOADING ---
-CAR_DRIVE_1 = pygame.transform.rotate(load_image("retro_porsche.png"), 0)
-CAR_DRIVE_2 = pygame.transform.rotate(load_image("backviewbmwm3.png"), 0)
-CAR_DRIVE_3 = pygame.transform.rotate(load_image("backview_skyline.png"), 0)
+CAR_DRIVE_1 = pygame.transform.rotate(load_image("racecars/porsche_backview.png"), 0)
+CAR_DRIVE_2 = pygame.transform.rotate(load_image("racecars/bmwm3_backview.png"), 0)
+CAR_DRIVE_3 = pygame.transform.rotate(load_image("racecars/skyline_backview.png"), 0)
 PLAYER_DRIVE_SPRITES = [CAR_DRIVE_1, CAR_DRIVE_2, CAR_DRIVE_3]
 
-MENU_CAR_1 = CAR_DRIVE_1
-MENU_CAR_2 = CAR_DRIVE_2
-MENU_CAR_3 = CAR_DRIVE_3
+MENU_CAR_1 = pygame.transform.rotate(load_image("racecars/porsche_frontview.png"), 0)
+MENU_CAR_2 = pygame.transform.rotate(load_image("racecars/bmwm3_topview.png"), 0)
+MENU_CAR_3 = pygame.transform.rotate(load_image("racecars/skyline_topview.png"), 0)
 PLAYER_MENU_VIEWS = [MENU_CAR_1, MENU_CAR_2, MENU_CAR_3]
 
-ENEMY_FILENAMES = ["kart.png", "front_view.png", "sport_car.png", "bmw.png", "bmw2.png", "front_view_skyline_enemy.png", "Bmwm3gtr.png"]
+ENEMY_FILENAMES = ["enemy-cars/kart.png", "enemy-cars/front_view.png", "enemy-cars/sport_car.png", "enemy-cars/bmw.png", "enemy-cars/bmw2.png", "enemy-cars/front_view_skyline_enemy.png", "enemy-cars/Bmwm3gtr.png"]
 IMG_ENEMIES = [pygame.transform.rotate(load_image(f), 0) for f in ENEMY_FILENAMES]
 IMG_FALLBACK_ENEMY = pygame.transform.rotate(load_image("car.png"), 0)
 
@@ -118,7 +118,7 @@ ROBOT_FRAMES = []
 for i in range(1, 11):
     # user: bmw-transformation/bmw_trans_1 ... bmw_trans_10
     # assume png; if your files are .gif or .jpg, rename or adjust here
-    img = load_image(os.path.join("bmw-transformation", f"bmw_trans_{i}.png"))
+    img = load_image(os.path.join("animations/bmw-transformation", f"bmw_trans_{i}.png"))
     ROBOT_FRAMES.append(img)
 
 try:
@@ -151,7 +151,7 @@ SCALE_CACHE = {}
 
 EXPLOSION_FRAMES = []
 for i in range(1, 11):
-    img = load_image(f"explosion/explosion-c{i}.png")
+    img = load_image(f"animations/explosion/explosion-c{i}.png")
     EXPLOSION_FRAMES.append(img)
 
 # --- CONSTANTS ---
