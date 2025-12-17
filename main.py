@@ -40,20 +40,16 @@ COUNTDOWN_FONT = pygame.font.SysFont("Arial", 120, bold=True)
 BUTTON_FONT = pygame.font.SysFont("Arial", 24, bold=True)
 
 # --- ASSETS LADEN ---
-
-# 1. Sprites voor tijdens het RIJDEN (Achterkant / Bovenkant)
 CAR_DRIVE_1 = pygame.transform.rotate(load_image("retro_porsche.png"), 0)
 CAR_DRIVE_2 = pygame.transform.rotate(load_image("backviewbmwm3.png"), 0)
 CAR_DRIVE_3 = pygame.transform.rotate(load_image("backview_skyline.png"), 0)
 PLAYER_DRIVE_SPRITES = [CAR_DRIVE_1, CAR_DRIVE_2, CAR_DRIVE_3]
 
-# 2. Sprites voor in het MENU (Statische Voorkant)
 MENU_CAR_1 = CAR_DRIVE_1
 MENU_CAR_2 = CAR_DRIVE_2
 MENU_CAR_3 = CAR_DRIVE_3
 PLAYER_MENU_VIEWS = [MENU_CAR_1, MENU_CAR_2, MENU_CAR_3]
 
-# Vijanden
 ENEMY_FILENAMES = ["kart.png", "front_view.png", "sport_car.png", "bmw.png", "bmw2.png", "front_view_skyline_enemy.png", "Bmwm3gtr.png"]
 IMG_ENEMIES = [pygame.transform.rotate(load_image(f), 0) for f in ENEMY_FILENAMES]
 IMG_FALLBACK_ENEMY = pygame.transform.rotate(load_image("car.png"), 0)
@@ -75,7 +71,7 @@ SCALE_CACHE = {}
 
 EXPLOSION_FRAMES = []
 for i in range(1, 11):
-    img = load_image(f"explosion/explosion-c{i}.png")
+    img = load_image(f"explosion-c{i}.png")
     EXPLOSION_FRAMES.append(img)
 
 # --- CONSTANTEN ---
@@ -90,6 +86,10 @@ Z_SPAWN_MAX = 0.20
 
 # car HP
 CAR_MAX_HP = 5
+
+# ammo
+MAG_SIZE = 12
+RELOAD_TIME = 180  # frames (~1.25s @ 60fps)
 
 # KLEUREN
 NEON_CYAN = (0, 255, 255)
@@ -465,7 +465,6 @@ class Obstacle:
             self.base_w = 34
             self.base_h = 34
 
-        # HP only for cars
         self.hp = CAR_MAX_HP if kind == "car" else None
 
     def update(self, dz):
@@ -495,7 +494,6 @@ class Obstacle:
             img = scale_cached(car_img, (r.w, r.h), SCALE_CACHE)
             surf.blit(img, r.topleft)
 
-            # HP bar
             if self.hp is not None:
                 pct = clamp(self.hp / CAR_MAX_HP, 0.0, 1.0)
                 bar_w = int(r.w * 0.60)
@@ -628,7 +626,11 @@ def main():
     building_spawn_progress = 0.0
     spawn_threshold = 0.45
 
-    shoot_cooldown = 0  # frames
+    # shooting / ammo
+    shoot_cooldown = 0
+    ammo = MAG_SIZE
+    reloading = False
+    reload_timer = 0
 
     if os.path.exists(MUSIC_PATH):
         try:
@@ -676,6 +678,9 @@ def main():
                         countdown_stage = 3
                         countdown_timer = 60
                         player = Player(PLAYER_DRIVE_SPRITES[selected_car_idx])
+                        ammo = MAG_SIZE
+                        reloading = False
+                        reload_timer = 0
                     if btn_quit_menu.collidepoint(event.pos):
                         pygame.quit()
                         sys.exit()
@@ -702,6 +707,9 @@ def main():
                         countdown_stage = 3
                         countdown_timer = 60
                         player = Player(PLAYER_DRIVE_SPRITES[selected_car_idx])
+                        ammo = MAG_SIZE
+                        reloading = False
+                        reload_timer = 0
 
                 elif alive and not counting_down:
                     if event.key == pygame.K_ESCAPE:
@@ -713,10 +721,15 @@ def main():
                         if event.key in (pygame.K_RIGHT, pygame.K_d):
                             player.move_right()
 
-                        # SHOOT (space)
-                        if event.key == pygame.K_SPACE and shoot_cooldown <= 0:
-                            bullets.append(Bullet(player.lane, player.z - 0.08))
-                            shoot_cooldown = 10
+                        # SHOOT (space) + ammo check
+                        if event.key == pygame.K_SPACE:
+                            if (not reloading) and ammo > 0 and shoot_cooldown <= 0:
+                                bullets.append(Bullet(player.lane, player.z - 0.08))
+                                shoot_cooldown = 10
+                                ammo -= 1
+                                if ammo <= 0:
+                                    reloading = True
+                                    reload_timer = RELOAD_TIME
 
                 else:
                     if event.key == pygame.K_r:
@@ -735,6 +748,14 @@ def main():
 
         if shoot_cooldown > 0:
             shoot_cooldown -= 1
+
+        # reload update (only when in-game; keep it simple)
+        if started and alive and (not paused) and (not counting_down):
+            if reloading:
+                reload_timer -= 1
+                if reload_timer <= 0:
+                    reloading = False
+                    ammo = MAG_SIZE
 
         if started and alive and not paused:
             if counting_down:
@@ -814,7 +835,7 @@ def main():
                     if blt.z < 0.02:
                         bullets.remove(blt)
 
-                # bullet collisions -> only cars need 5 hits
+                # bullet collisions -> cars take 5 hits
                 for blt in bullets[:]:
                     brect = blt.get_rect()
                     hit_any = False
@@ -824,20 +845,17 @@ def main():
                         if not brect.colliderect(orect):
                             continue
 
-                        # bullet hits something -> remove bullet
                         hit_any = True
 
                         if obs.kind == "car":
                             obs.hp -= 1
                             score += 40
-
                             if obs.hp <= 0:
                                 explosions.append(Explosion(orect.centerx, orect.centery, obs.z))
                                 start_shake(12, 7)
                                 obstacles.remove(obs)
                                 score += 300
                         else:
-                            # cones / roadblocks: instant destroy (optional)
                             explosions.append(Explosion(orect.centerx, orect.centery, obs.z))
                             start_shake(8, 5)
                             obstacles.remove(obs)
@@ -931,7 +949,13 @@ def main():
         pygame.draw.rect(frame, (50, 50, 50), (20, 60, 200, 20), border_radius=5)
         pygame.draw.rect(frame, NEON_CYAN, (20, 60, int(200 * speed_pct), 20), border_radius=5)
         draw_text_with_outline(frame, "SPEED", pygame.font.SysFont("Arial", 16), WHITE, (25, 62))
-        draw_text_with_outline(frame, "SPACE: shoot", pygame.font.SysFont("Arial", 16), WHITE, (20, 88))
+
+        # ammo HUD
+        if started:
+            if reloading:
+                draw_text_with_outline(frame, "RELOADING...", FONT, NEON_RED, (20, 92))
+            draw_text_with_outline(frame, f"AMMO: {ammo}/{MAG_SIZE}", FONT, WHITE, (20, 120))
+            draw_text_with_outline(frame, "SPACE: shoot", pygame.font.SysFont("Arial", 16), WHITE, (20, 148))
 
         if counting_down:
             draw_countdown_lights(frame, countdown_stage)
