@@ -178,53 +178,91 @@ def draw_button(surf, rect, text, is_danger=False):
 
 # --- HORIZONTAAL STOPLICHT ---
 def draw_countdown_lights(surf, stage):
+    center_x = W // 2
+    center_y = H // 4
+    
+    # --- FASE 0: GO! (Trillende tekst zonder achtergrondbol) ---
     if stage == 0:
-        txt = COUNTDOWN_FONT.render("GO!", True, NEON_CYAN)
-        glow = COUNTDOWN_FONT.render("GO!", True, (0, 100, 200))
-        tr = txt.get_rect(center=(W//2, H//2))
-        offset = random.randint(-2, 2)
-        surf.blit(glow, (tr.x+5+offset, tr.y+5+offset))
-        surf.blit(txt, (tr.x+offset, tr.y+offset))
+        # Het 'shaken' effect terugbrengen
+        offset_x = random.randint(-3, 3)
+        offset_y = random.randint(-3, 3)
+        
+        txt_surf = COUNTDOWN_FONT.render("GO!", True, NEON_CYAN) # Of WHITE als je wit wilt
+        # Een donkere outline/schaduw voor leesbaarheid
+        shadow_surf = COUNTDOWN_FONT.render("GO!", True, (0, 50, 100))
+        
+        # Centreren
+        txt_rect = txt_surf.get_rect(center=(center_x, H // 2))
+        
+        # Eerst schaduw tekenen (met tril-offset + kleine verschuiving)
+        surf.blit(shadow_surf, (txt_rect.x + offset_x + 4, txt_rect.y + offset_y + 4))
+        # Dan de tekst zelf (met tril-offset)
+        surf.blit(txt_surf, (txt_rect.x + offset_x, txt_rect.y + offset_y))
         return
 
-    box_w, box_h = 300, 100
-    box_x = W // 2 - box_w // 2
-    box_y = H // 4
-    box_rect = pygame.Rect(box_x, box_y, box_w, box_h)
+    # --- SETUP STOPLICHT PANEEL ---
+    box_w, box_h = 340, 120
+    box_rect = pygame.Rect(0, 0, box_w, box_h)
+    box_rect.center = (center_x, center_y)
 
-    pygame.draw.rect(surf, (30, 30, 30), box_rect, border_radius=20)
-    pygame.draw.rect(surf, (150, 150, 150), box_rect, 4, border_radius=20)
+    # 1. De Behuizing (Carbon/Metaal look)
+    pygame.draw.rect(surf, (20, 22, 25), box_rect, border_radius=20)
+    pygame.draw.rect(surf, (160, 170, 180), box_rect, 4, border_radius=20)
+    pygame.draw.rect(surf, (10, 10, 10), box_rect.inflate(-6, -6), 2, border_radius=18)
 
-    radius = 30
-    center_y = box_rect.centery
-    spacing = 80
+    # Schroefjes
+    bolt_offset = 12
+    for bx in [box_rect.left + bolt_offset, box_rect.right - bolt_offset]:
+        for by in [box_rect.top + bolt_offset, box_rect.bottom - bolt_offset]:
+            pygame.draw.circle(surf, (100, 100, 100), (bx, by), 3)
 
-    pos_red = (box_rect.centerx - spacing, center_y)
-    pos_orange = (box_rect.centerx, center_y)
-    pos_green = (box_rect.centerx + spacing, center_y)
+    # --- LAMP LOGICA ---
+    radius = 36
+    spacing = 100
+    
+    colors = {
+        3: {"lit": (255, 20, 20),   "dark": (60, 10, 10),   "glow": (255, 0, 0)},     # Rood
+        2: {"lit": (255, 180, 0),   "dark": (60, 40, 0),    "glow": (255, 140, 0)},   # Oranje
+        1: {"lit": (0, 255, 80),    "dark": (0, 60, 20),    "glow": (0, 255, 0)}      # Groen
+    }
+    
+    current_set = colors.get(stage, colors[3])
+    
+    positions = [
+        (center_x - spacing, center_y),
+        (center_x, center_y),
+        (center_x + spacing, center_y)
+    ]
 
-    c_red = (255, 0, 0) if stage == 3 else (60, 0, 0)
-    c_orange = (255, 180, 0) if stage == 2 else (60, 40, 0)
-    c_green = (0, 255, 0) if stage == 1 else (0, 60, 0)
+    for x, y in positions:
+        # 2. De Fitting
+        pygame.draw.circle(surf, (5, 5, 5), (x, y), radius + 4)
+        pygame.draw.circle(surf, (80, 80, 90), (x, y), radius + 4, 2)
 
-    pygame.draw.circle(surf, c_red, pos_red, radius)
-    pygame.draw.circle(surf, c_orange, pos_orange, radius)
-    pygame.draw.circle(surf, c_green, pos_green, radius)
+        # 3. De Gloed (Glow Effect) - AANGEPAST: Kleiner en zachter
+        # Glow is nu veel kleiner (1.4x radius ipv 2.2x) zodat ze niet zo hard overlappen
+        glow_radius = int(radius * 1)
+        glow_surf = pygame.Surface((glow_radius * 2, glow_radius * 2), pygame.SRCALPHA)
+        
+        glow_rgb = current_set["glow"]
+        # De alpha (laatste getal) is verlaagd naar 30 voor een zachtere rand
+        pygame.draw.circle(glow_surf, (*glow_rgb, 30), (glow_radius, glow_radius), glow_radius)
+        # Kern iets feller
+        pygame.draw.circle(glow_surf, (*glow_rgb, 60), (glow_radius, glow_radius), int(radius * 0.8))
+        
+        # Glow tekenen met blend mode
+        surf.blit(glow_surf, (x - glow_radius, y - glow_radius), special_flags=pygame.BLEND_ADD)
 
-    pygame.draw.circle(surf, (0,0,0), pos_red, radius, 2)
-    pygame.draw.circle(surf, (0,0,0), pos_orange, radius, 2)
-    pygame.draw.circle(surf, (0,0,0), pos_green, radius, 2)
+        # 4. De Lamp Zelf
+        main_color = current_set["lit"]
+        pygame.draw.circle(surf, main_color, (x, y), radius)
+        
+        # Binnenste verloop
+        pygame.draw.circle(surf, [min(255, c + 50) for c in main_color], (x, y), int(radius * 0.7))
 
-    glow_surf = pygame.Surface((radius*4, radius*4), pygame.SRCALPHA)
-    if stage == 3:
-        pygame.draw.circle(glow_surf, (255, 0, 0, 80), (radius*2, radius*2), int(radius*1.5))
-        surf.blit(glow_surf, (pos_red[0]-radius*2, pos_red[1]-radius*2))
-    elif stage == 2:
-        pygame.draw.circle(glow_surf, (255, 180, 0, 80), (radius*2, radius*2), int(radius*1.5))
-        surf.blit(glow_surf, (pos_orange[0]-radius*2, pos_orange[1]-radius*2))
-    elif stage == 1:
-        pygame.draw.circle(glow_surf, (0, 255, 0, 80), (radius*2, radius*2), int(radius*1.5))
-        surf.blit(glow_surf, (pos_green[0]-radius*2, pos_green[1]-radius*2))
+        # 5. De Reflectie (De 'Shine')
+        shine_rect = pygame.Rect(x - radius * 0.5, y - radius * 0.6, radius * 0.4, radius * 0.25)
+        pygame.draw.ellipse(surf, (255, 255, 255, 180), shine_rect)
 
 # --- SKYLINE GENERATIE ---
 skyline_segments = []
