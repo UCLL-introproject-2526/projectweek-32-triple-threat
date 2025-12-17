@@ -105,8 +105,8 @@ CAR_DRIVE_3 = pygame.transform.rotate(load_image("racecars/skyline_backview.png"
 PLAYER_DRIVE_SPRITES = [CAR_DRIVE_1, CAR_DRIVE_2, CAR_DRIVE_3]
 
 MENU_CAR_1 = pygame.transform.rotate(load_image("racecars/porsche_frontview.png"), 0)
-MENU_CAR_2 = pygame.transform.rotate(load_image("racecars/bmwm3_topview.png"), 0)
-MENU_CAR_3 = pygame.transform.rotate(load_image("racecars/skyline_topview.png"), 0)
+MENU_CAR_2 = pygame.transform.rotate(load_image("racecars/BMW_frontview.png"), 0)
+MENU_CAR_3 = pygame.transform.rotate(load_image("racecars/R34_frontview.png"), 0)
 PLAYER_MENU_VIEWS = [MENU_CAR_1, MENU_CAR_2, MENU_CAR_3]
 
 ENEMY_FILENAMES = ["enemy-cars/kart.png", "enemy-cars/front_view.png", "enemy-cars/sport_car.png", "enemy-cars/bmw.png", "enemy-cars/bmw2.png", "enemy-cars/front_view_skyline_enemy.png", "enemy-cars/porsche.png"]
@@ -114,12 +114,18 @@ IMG_ENEMIES = [pygame.transform.rotate(load_image(f), 0) for f in ENEMY_FILENAME
 IMG_FALLBACK_ENEMY = pygame.transform.rotate(load_image("car.png"), 0)
 
 MAG_ICON = load_image("ammo.png")
-ROBOT_FRAMES = []
-for i in range(1, 11):
-    # user: bmw-transformation/bmw_trans_1 ... bmw_trans_10
-    # assume png; if your files are .gif or .jpg, rename or adjust here
-    img = load_image(os.path.join("animations/bmw-transformation", f"bmw_trans_{i}.png"))
-    ROBOT_FRAMES.append(img)
+
+def load_robot_frames(folder, prefix, count=10):
+    frames = []
+    for i in range(1, count + 1):
+        frames.append(load_image(os.path.join("animations", folder, f"{prefix}_{i}.png")))
+    return frames
+
+ROBOT_FRAMES_PER_CAR = [
+    load_robot_frames("porsche-transformation", "porsche_trans"),
+    load_robot_frames("bmw-transformation", "bmw_trans"),
+    load_robot_frames("skyline-transformation", "skyline_trans"),
+]
 
 try:
     raw_skyline = load_image("skyline.png")
@@ -1118,7 +1124,11 @@ def main():
                         countdown_stage = 3
                         countdown_timer = 60
 
-                        player = Player(PLAYER_DRIVE_SPRITES[selected_car_idx], ROBOT_FRAMES)
+                        player = Player(
+                            PLAYER_DRIVE_SPRITES[selected_car_idx],
+                            ROBOT_FRAMES_PER_CAR[selected_car_idx]
+                        )
+
                         ammo = MAG_SIZE
                         reloading = False
                         reload_timer = 0
@@ -1177,7 +1187,10 @@ def main():
                         countdown_stage = 3
                         countdown_timer = 60
 
-                        player = Player(PLAYER_DRIVE_SPRITES[selected_car_idx], ROBOT_FRAMES)
+                        player = Player(
+                            PLAYER_DRIVE_SPRITES[selected_car_idx],
+                            ROBOT_FRAMES_PER_CAR[selected_car_idx]
+                        )
                         ammo = MAG_SIZE
                         reloading = False
                         reload_timer = 0
