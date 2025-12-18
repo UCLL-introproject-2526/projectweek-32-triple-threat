@@ -116,9 +116,9 @@ def load_robot_frames(folder, prefix, count=10):
     return frames
 
 ROBOT_FRAMES_PER_CAR = [
-    load_robot_frames("porsche-transformation", "porsche_trans"),
-    load_robot_frames("bmw-transformation", "bmw_trans"),
-    load_robot_frames("skyline-transformation", "skyline_trans"),
+    load_robot_frames("porsche-animation", "porsche_trans"),
+    load_robot_frames("bmw-animation", "bmw_trans"),
+    load_robot_frames("skyline-animation", "skyline_trans"),
 ]
 
 try:
