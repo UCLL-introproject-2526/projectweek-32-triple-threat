@@ -148,6 +148,9 @@ SOUND_ROBOT_ENGINE = load_sound("transformer_running.mp3")
 SOUND_TRANSFORM = load_sound("transformation.mp3")
 SOUND_BEEP = load_sound("Beep_start.mp3")
 SOUND_GO = load_sound("Go_sound.mp3")
+SOUND_SHOOT = load_sound("shot.mp3")
+if SOUND_SHOOT:
+    SOUND_SHOOT.set_volume(0.5)
 if SOUND_EXPLOSION:
     SOUND_EXPLOSION.set_volume(0.7)
 if SOUND_ENGINE:
@@ -1291,6 +1294,8 @@ def main():
                                 bullets.append(Bullet(player.lane, player.z - 0.08, robot=robot_active))
                                 shoot_cooldown = ROBOT_SHOOT_COOLDOWN if robot_active else NORMAL_SHOOT_COOLDOWN
                                 ammo -= 1
+                                if SOUND_SHOOT:
+                                    SOUND_SHOOT.play()
                                 if ammo <= 0:
                                     reloading = True
                                     reload_timer = RELOAD_TIME
