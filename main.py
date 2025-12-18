@@ -146,8 +146,8 @@ MUSIC_PATH = os.path.join(SOUND_DIR, "Soundtrack.mp3")
 SOUND_EXPLOSION = load_sound("car_explosion.mp3")
 SOUND_ROBOT_ENGINE = load_sound("transformer_running.mp3")
 SOUND_TRANSFORM = load_sound("transformation.mp3")
-SOUND_BEEP = load_sound("beep_start.mp3")
-SOUND_GO = load_sound("go_sound.mp3")
+SOUND_BEEP = load_sound("Beep_start.mp3")
+SOUND_GO = load_sound("Go_sound.mp3")
 if SOUND_EXPLOSION:
     SOUND_EXPLOSION.set_volume(0.7)
 if SOUND_ENGINE:
@@ -1187,6 +1187,8 @@ def main():
                         counting_down = True
                         countdown_stage = 3
                         countdown_timer = 60
+                        if SOUND_BEEP:
+                            SOUND_BEEP.play()
 
                         player = Player(
                             PLAYER_DRIVE_SPRITES[selected_car_idx],
@@ -1250,6 +1252,8 @@ def main():
                         counting_down = True
                         countdown_stage = 3
                         countdown_timer = 60
+                        if SOUND_BEEP:
+                            SOUND_BEEP.play()
 
                         player = Player(
                             PLAYER_DRIVE_SPRITES[selected_car_idx],
@@ -1331,8 +1335,17 @@ def main():
                 if countdown_timer <= 0:
                     countdown_stage -= 1
                     countdown_timer = 60
-                    if countdown_stage < 0:
-                        counting_down = False
+
+                    if countdown_stage in (2, 1):
+                        if SOUND_BEEP:
+                            SOUND_BEEP.play()
+                    elif countdown_stage == 0:
+                        if SOUND_GO:
+                            SOUND_GO.play()
+
+                if countdown_stage < 0:
+                    counting_down = False
+
             else:
                 boosting = keys[pygame.K_UP] or keys[pygame.K_w]
                 braking = keys[pygame.K_DOWN] or keys[pygame.K_s]
