@@ -810,6 +810,8 @@ class Player:
                     self.robot_transforming = False
                     self.robot_reverting = True
                     self.robot_frame = float(len(self.transform_frames) - 1)
+                    if SOUND_TRANSFORM:
+                        SOUND_TRANSFORM.play()
             else:
                 self.robot_mode = False
                 self.robot_transforming = False
