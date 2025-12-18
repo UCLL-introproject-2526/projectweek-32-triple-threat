@@ -771,6 +771,7 @@ class Player:
         self.robot_mode = False
         self.robot_transforming = False
         self.robot_frame = 0.0
+        self.robot_reverting = False
 
         self.lane = 1
         self.target_lane = 1
@@ -784,11 +785,37 @@ class Player:
         self.particles = []
 
     def set_robot(self, on: bool):
-        # just sets the mode flag (animation state handled elsewhere)
-        self.robot_mode = bool(on)
-        if not on:
-            self.robot_transforming = False
-            self.robot_frame = 0.0
+        on = bool(on)
+
+        if on:
+            # cancel revert if robot turns on again
+            self.robot_reverting = False
+
+            # start transform only once when turning on
+            if not self.robot_mode:
+                self.robot_mode = True
+                if self.transform_frames:
+                    self.robot_transforming = True
+                    self.robot_frame = 0.0
+                else:
+                    self.robot_transforming = False
+                    self.robot_frame = 0.0
+            return
+
+        # turning OFF:
+        if self.robot_mode:
+            # IMPORTANT: don't restart revert every frame
+            if self.transform_frames:
+                if not self.robot_reverting:
+                    self.robot_transforming = False
+                    self.robot_reverting = True
+                    self.robot_frame = float(len(self.transform_frames) - 1)
+            else:
+                self.robot_mode = False
+                self.robot_transforming = False
+                self.robot_reverting = False
+                self.robot_frame = 0.0
+
 
     def start_robot_transform(self):
         # call this ONLY on the activation moment
@@ -835,14 +862,26 @@ class Player:
 
         # ---- robot animation update ----
         if self.robot_mode:
-            if self.robot_transforming and self.transform_frames:
+            # reverse transform (end of robot)
+            if self.robot_reverting and self.transform_frames:
+                self.robot_frame -= ROBOT_ANIM_SPEED
+                if self.robot_frame <= 0:
+                    self.robot_reverting = False
+                    self.robot_mode = False
+                    self.robot_frame = 0.0
+
+            # forward transform (start of robot)
+            elif self.robot_transforming and self.transform_frames:
                 self.robot_frame += ROBOT_ANIM_SPEED
                 if self.robot_frame >= len(self.transform_frames) - 1:
                     self.robot_transforming = False
-                    self.robot_frame = 0.0  # start running from beginning
+                    self.robot_frame = 0.0  # start run loop from beginning
+
+            # run loop
             else:
                 if self.run_frames:
                     self.robot_frame = (self.robot_frame + ROBOT_ANIM_SPEED) % len(self.run_frames)
+
 
     def get_rect_no_rotate(self):
         y = y_from_z(self.z)
@@ -875,7 +914,7 @@ class Player:
         if self.robot_mode:
             img0 = None
 
-            if self.robot_transforming and self.transform_frames:
+            if (self.robot_transforming or self.robot_reverting) and self.transform_frames:
                 idx = int(self.robot_frame)
                 idx = max(0, min(idx, len(self.transform_frames) - 1))
                 img0 = self.transform_frames[idx]
@@ -1759,7 +1798,7 @@ def main():
             s = pygame.Surface((W, H), pygame.SRCALPHA)
             s.fill((0, 0, 0, 150))
             frame.blit(s, (0, 0))
-            txt = BIG_FONT.render("PAUZE", True, WHITE)
+            txt = BIG_FONT.render("PAUSE", True, WHITE)
             frame.blit(txt, (W // 2 - txt.get_width() // 2, H // 2))
 
         draw_button(frame, btn_info, "i" if info_alpha < 5 else "X", is_danger=(info_alpha >= 5))
