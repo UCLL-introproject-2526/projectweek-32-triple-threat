@@ -1291,22 +1291,31 @@ def main():
                     buildings.append(SideObject(-1, Z_SPAWN_MIN))
                     buildings.append(SideObject(1, Z_SPAWN_MIN))
 
+               # --- AANGEPASTE BUILDING SPAWN LOGICA ---
                 building_spawn_progress += speed
-                if building_spawn_progress > 0.12:
+                
+                # Check veel vaker (was 0.12, nu 0.01)
+                if building_spawn_progress > 0.01:
                     building_spawn_progress = 0
 
-                    if random.random() < 0.4:
-                        if not any(isinstance(b, Building) and b.layer == 1 and b.side == -1 and abs(b.z - Z_SPAWN_MIN) < 0.2 for b in buildings):
-                            buildings.append(Building(-1, Z_SPAWN_MIN, layer=1))
-                        if not any(isinstance(b, Building) and b.layer == 1 and b.side == 1 and abs(b.z - Z_SPAWN_MIN) < 0.2 for b in buildings):
-                            buildings.append(Building(1, Z_SPAWN_MIN, layer=1))
+                    # --- EERSTE LAAG (Dicht op de weg) ---
+                    # We halen de 'random < 0.4' weg zodat hij altijd probeert te bouwen
+                    
+                    # Check of er ruimte is (collision distance verlaagd van 0.2 naar 0.08 voor dichtere gebouwen)
+                    if not any(isinstance(b, Building) and b.layer == 1 and b.side == -1 and abs(b.z - Z_SPAWN_MIN) < 0.08 for b in buildings):
+                        buildings.append(Building(-1, Z_SPAWN_MIN, layer=1))
+                    
+                    if not any(isinstance(b, Building) and b.layer == 1 and b.side == 1 and abs(b.z - Z_SPAWN_MIN) < 0.08 for b in buildings):
+                        buildings.append(Building(1, Z_SPAWN_MIN, layer=1))
 
-                    if random.random() < 0.5:
+                    # --- TWEEDE LAAG (Achtergrond, optioneel 'vol' maken) ---
+                    # Hier kun je wel random houden voor variatie, of ook weghalen voor een muur
+                    if random.random() < 0.6: 
                         if not any(isinstance(b, Building) and b.layer == 2 and b.side == -1 and abs(b.z - Z_SPAWN_MIN) < 0.15 for b in buildings):
                             buildings.append(Building(-1, Z_SPAWN_MIN, layer=2))
                         if not any(isinstance(b, Building) and b.layer == 2 and b.side == 1 and abs(b.z - Z_SPAWN_MIN) < 0.15 for b in buildings):
                             buildings.append(Building(1, Z_SPAWN_MIN, layer=2))
-
+                            
                 p_rect = player.get_rect()
                 for b in buildings[:]:
                     b.update(speed)
@@ -1343,13 +1352,11 @@ def main():
                                 explosions.append(Explosion(p_rect.centerx, p_rect.centery, player.z))
                                 start_shake(22, 10)
 
-                # update bullets
                 for blt in bullets[:]:
                     blt.update()
                     if blt.z < 0.02:
                         bullets.remove(blt)
 
-                # bullet collisions
                 for blt in bullets[:]:
                     brect = blt.get_rect()
                     hit_any = False
@@ -1363,7 +1370,6 @@ def main():
 
                         if obs.kind == "car":
                             if blt.robot:
-                                # ROBOT BULLET: one-shot enemy cars
                                 obs.hp = 0
                             else:
                                 obs.hp -= 1
@@ -1489,22 +1495,18 @@ def main():
             s.fill((50, 0, 0, 200))
             frame.blit(s, (0, 0))
             
-            # --- LEADERBOARD LOGICA TOEVOEGEN ---
             if not score_saved:
                 high_scores = save_new_score(last_score)
                 score_saved = True
             
-            # Teksten iets omhoog verplaatsen voor ruimte
             txt = BIG_FONT.render("CRASHED!", True, (255, 50, 50))
             frame.blit(txt, (W // 2 - txt.get_width() // 2, H // 2 - 220))
             
             score_txt = FONT.render(f"YOUR SCORE: {last_score}", True, WHITE)
             frame.blit(score_txt, (W // 2 - score_txt.get_width() // 2, H // 2 - 150))
             
-            # Leaderboard tekenen
             draw_leaderboard_panel(frame, high_scores, W // 2, H // 2 - 100)
             
-            # Knoppen iets naar beneden verplaatsen zodat ze niet door de tekst staan
             btn_restart.y = H // 2 + 90
             btn_quit_over.y = H // 2 + 150
             
