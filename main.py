@@ -146,9 +146,11 @@ MUSIC_PATH = os.path.join(SOUND_DIR, "Soundtrack.mp3")
 SOUND_EXPLOSION = load_sound("car_explosion.mp3")
 if SOUND_EXPLOSION:
     SOUND_EXPLOSION.set_volume(0.7)
-
 if SOUND_ENGINE:
     SOUND_ENGINE.set_volume(0.3)
+SOUND_ROBOT_ENGINE = load_sound("transformer_running.mp3")
+if SOUND_ROBOT_ENGINE:
+    SOUND_ROBOT_ENGINE.set_volume(0.5)
 
 SCALE_CACHE = {}
 
@@ -1327,12 +1329,34 @@ def main():
                 target_speed = base_speed * 1.5 if boosting else (base_speed * 0.7 if braking else base_speed)
                 speed = lerp(speed, target_speed, 0.1)
 
-                if SOUND_ENGINE:
-                    if boosting and alive:
-                        if SOUND_ENGINE.get_num_channels() == 0:
-                            SOUND_ENGINE.play(-1)
+                if alive:
+                    if boosting:
+                        if robot_active:
+                            # Robot boost sound
+                            if SOUND_ENGINE:
+                                SOUND_ENGINE.stop()
+
+                            if SOUND_ROBOT_ENGINE and SOUND_ROBOT_ENGINE.get_num_channels() == 0:
+                                SOUND_ROBOT_ENGINE.play(-1)
+                        else:
+                            # Normal car boost sound
+                            if SOUND_ROBOT_ENGINE:
+                                SOUND_ROBOT_ENGINE.stop()
+
+                            if SOUND_ENGINE and SOUND_ENGINE.get_num_channels() == 0:
+                                SOUND_ENGINE.play(-1)
                     else:
+                        # Not boosting → stop both
+                        if SOUND_ENGINE:
+                            SOUND_ENGINE.stop()
+                        if SOUND_ROBOT_ENGINE:
+                            SOUND_ROBOT_ENGINE.stop()
+                else:
+                    # Dead → stop all
+                    if SOUND_ENGINE:
                         SOUND_ENGINE.stop()
+                    if SOUND_ROBOT_ENGINE:
+                        SOUND_ROBOT_ENGINE.stop()
 
                 player.update(boosting)
 
