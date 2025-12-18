@@ -79,7 +79,7 @@ pygame.mixer.init()
 
 W, H = 1024, 768
 screen = pygame.display.set_mode((W, H))
-pygame.display.set_caption("Triple Threat - Final Version (Enhanced)")
+pygame.display.set_caption("Triple Threat - Choose Your Lane")
 clock = pygame.time.Clock()
 
 # --- FONTS ---
