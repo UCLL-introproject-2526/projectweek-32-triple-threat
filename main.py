@@ -498,7 +498,6 @@ def draw_road(surf, dash_offset=0.0):
         l0, r0 = road_edges_at_y(y0)
         l1, r1 = road_edges_at_y(y1)
         
-        # AANGEPAST: Veel smaller gemaakt (van 0.08 naar 0.035)
         curb_w0 = (r0 - l0) * 0.035
         curb_w1 = (r1 - l1) * 0.035
         
@@ -537,22 +536,37 @@ def draw_road(surf, dash_offset=0.0):
         x_near = (ROAD_CENTER_X - ROAD_NEAR_W / 2) + near_lane_w * i
         pygame.draw.line(surf, (70, 70, 80), (x_far, ROAD_FAR_Y), (x_near, ROAD_NEAR_Y), 1)
 
+
     dash_count = 12
+    dash_len = 0.45 / dash_count
+
     for lane_i in range(1, LANES):
-        far_lane_w = ROAD_FAR_W / LANES
-        near_lane_w = ROAD_NEAR_W / LANES
-        x_far_base = (ROAD_CENTER_X - ROAD_FAR_W / 2) + far_lane_w * lane_i
-        x_near_base = (ROAD_CENTER_X - ROAD_NEAR_W / 2) + near_lane_w * lane_i
+        x_far  = (ROAD_CENTER_X - ROAD_FAR_W / 2)  + (ROAD_FAR_W  / LANES) * lane_i
+        x_near = (ROAD_CENTER_X - ROAD_NEAR_W / 2) + (ROAD_NEAR_W / LANES) * lane_i
+
         for k in range(dash_count):
-            t0 = ((k / dash_count) + dash_offset) % 1.0
-            t1 = ((k + 0.5) / dash_count + dash_offset) % 1.0
-            if t1 < t0: continue
-            y0 = lerp(ROAD_FAR_Y, ROAD_NEAR_Y, t0)
-            y1 = lerp(ROAD_FAR_Y, ROAD_NEAR_Y, t1)
-            x0 = lerp(x_far_base, x_near_base, t0)
-            x1 = lerp(x_far_base, x_near_base, t1)
-            alpha = int(lerp(100, 255, t0))
-            pygame.draw.line(surf, (alpha, alpha, alpha), (x0, y0), (x1, y1), 3)
+            a = (k / dash_count) + dash_offset
+            b = a + dash_len
+
+            for shift in (0.0, -1.0):
+                if shift == -1.0 and b <= 1.0:
+                    continue
+
+                t0 = a + shift
+                t1 = b + shift
+                if t1 <= 0.0 or t0 >= 1.0:
+                    continue
+
+                t0 = max(0.0, min(1.0, t0))
+                t1 = max(0.0, min(1.0, t1))
+
+                p0, p1 = t0 * t0, t1 * t1
+
+                x0 = lerp(x_far,  x_near, p0);  y0 = lerp(ROAD_FAR_Y, ROAD_NEAR_Y, p0)
+                x1 = lerp(x_far,  x_near, p1);  y1 = lerp(ROAD_FAR_Y, ROAD_NEAR_Y, p1)
+
+                c = int(lerp(120, 255, p0))
+                pygame.draw.line(surf, (c, c, c), (x0, y0), (x1, y1), 3)
 
 # --- CLASSES ---
 class Particle:
