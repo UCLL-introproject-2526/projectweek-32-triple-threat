@@ -1319,6 +1319,23 @@ def main():
                     toggle_info()
                     continue
 
+                if paused:
+                    # Define temporary buttons for the pause menu positions
+                    # Use center_x and btn_w/h which are already defined in your main()
+                    p_resume  = pygame.Rect(center_x, H // 2 - 30, btn_w, btn_h)
+                    p_restart = pygame.Rect(center_x, H // 2 + 30, btn_w, btn_h)
+                    p_quit    = pygame.Rect(center_x, H // 2 + 90, btn_w, btn_h)
+
+                    if p_resume.collidepoint(event.pos):
+                        paused = False
+                    elif p_restart.collidepoint(event.pos):
+                        return main()  # This restarts the game
+                    elif p_quit.collidepoint(event.pos):
+                        pygame.quit()
+                        sys.exit()
+                    
+                    continue
+
                 if not started:
                     for i, r in enumerate(car_rects):
                         if r.collidepoint(event.pos):
@@ -1801,7 +1818,13 @@ def main():
             s.fill((0, 0, 0, 150))
             frame.blit(s, (0, 0))
             txt = BIG_FONT.render("PAUSE", True, WHITE)
-            frame.blit(txt, (W // 2 - txt.get_width() // 2, H // 2))
+            frame.blit(txt, (W // 2 - txt.get_width() // 2, H // 2 - 100))
+            p_resume  = pygame.Rect(center_x, H // 2 - 30, btn_w, btn_h)
+            p_restart = pygame.Rect(center_x, H // 2 + 30, btn_w, btn_h)
+            p_quit    = pygame.Rect(center_x, H // 2 + 90, btn_w, btn_h)
+            draw_button(frame, p_resume, "CONTINUE")
+            draw_button(frame, p_restart, "RESTART")
+            draw_button(frame, p_quit, "QUIT", is_danger=True)
 
         draw_button(frame, btn_info, "i" if info_alpha < 5 else "X", is_danger=(info_alpha >= 5))
         draw_info_overlay(
