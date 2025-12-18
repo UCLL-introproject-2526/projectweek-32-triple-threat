@@ -151,6 +151,10 @@ if SOUND_ENGINE:
 SOUND_ROBOT_ENGINE = load_sound("transformer_running.mp3")
 if SOUND_ROBOT_ENGINE:
     SOUND_ROBOT_ENGINE.set_volume(0.5)
+SOUND_TRANSFORM = load_sound("transformation.mp3")
+if SOUND_TRANSFORM:
+    SOUND_TRANSFORM.set_volume(0.7)
+
 
 SCALE_CACHE = {}
 
@@ -1494,6 +1498,8 @@ def main():
                                     robot_active = True
                                     robot_timer = ROBOT_DURATION_FRAMES
                                     kills = 0
+                                    if SOUND_TRANSFORM:
+                                        SOUND_TRANSFORM.play()
                                     robot_ready = False
                         else:
                             if SOUND_EXPLOSION:
