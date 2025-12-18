@@ -202,8 +202,8 @@ ROBOT_CONTACT_SCORE_OTHER = 120
 NEON_CYAN = (0, 255, 255)
 NEON_RED = (255, 50, 50)
 WHITE = (255, 255, 255)
-KERB_RED = (200, 0, 0)
-KERB_WHITE = (230, 230, 230)
+KERB_COLOR = (60, 60, 70)
+KERB_SIDE_COLOR = (30, 30, 40)
 
 BUILDING_DARK  = (10, 10, 25)
 BUILDING_BASE  = (20, 20, 40)
@@ -218,6 +218,9 @@ GRASS_LIGHT = (15, 15, 30)
 SIDEWALK    = (120, 120, 130)
 SIDEWALK_L  = (140, 140, 150)
 LANTERN_GLOW = (255, 200, 50)
+
+
+
 
 # --- HELPER FUNCTIONS ---
 def clamp(x, a, b): return max(a, min(b, x))
@@ -461,29 +464,56 @@ def draw_road(surf, dash_offset=0.0):
     far_right = ROAD_CENTER_X + ROAD_FAR_W // 2
     near_left = ROAD_CENTER_X - ROAD_NEAR_W // 2
     near_right = ROAD_CENTER_X + ROAD_NEAR_W // 2
+    
+    # 1. Teken het asfalt
     road_poly = [(far_left, ROAD_FAR_Y), (far_right, ROAD_FAR_Y),
                  (near_right, ROAD_NEAR_Y), (near_left, ROAD_NEAR_Y)]
     pygame.draw.polygon(surf, (40, 40, 50), road_poly)
 
+    # 2. Teken de 3D Curbs (Smalle, donkere rand)
     num_segments = 24
     for i in range(num_segments):
         t0 = i / num_segments
         t1 = (i + 1) / num_segments
+        
         y0 = lerp(ROAD_FAR_Y, ROAD_NEAR_Y, t0)
         y1 = lerp(ROAD_FAR_Y, ROAD_NEAR_Y, t1)
+        
         l0, r0 = road_edges_at_y(y0)
         l1, r1 = road_edges_at_y(y1)
-        curb_w0 = (r0 - l0) * 0.05
-        curb_w1 = (r1 - l1) * 0.05
-        scroll_val = (t0 + dash_offset) * 10
-        col = KERB_RED if int(scroll_val) % 2 == 0 else KERB_WHITE
-        pygame.draw.polygon(surf, col, [(l0 - curb_w0, y0), (l0, y0), (l1, y1), (l1 - curb_w1, y1)])
-        pygame.draw.polygon(
-            surf, col,
-            [(r0, y0), (r0 + curb_w0, y0), (r1 + curb_w1, y1), (r1, y1)]
-)
+        
+        # AANGEPAST: Veel smaller gemaakt (van 0.08 naar 0.035)
+        curb_w0 = (r0 - l0) * 0.035
+        curb_w1 = (r1 - l1) * 0.035
+        
+        # Verhouding zijkant/bovenkant
+        side_ratio = 0.3 
+        side_w0 = curb_w0 * side_ratio
+        side_w1 = curb_w1 * side_ratio
+        
+        # AANGEPAST: Geen wisselende kleuren meer, maar 1 vaste kleur
+        col_top = KERB_COLOR
+        col_side = KERB_SIDE_COLOR
 
+        # --- LINKS ---
+        # Zijkant (Diepte)
+        poly_l_side = [(l0 - side_w0, y0), (l0, y0), (l1, y1), (l1 - side_w1, y1)]
+        pygame.draw.polygon(surf, col_side, poly_l_side)
 
+        # Bovenkant (Plat)
+        poly_l_top = [(l0 - curb_w0, y0), (l0 - side_w0, y0), (l1 - side_w1, y1), (l1 - curb_w1, y1)]
+        pygame.draw.polygon(surf, col_top, poly_l_top)
+
+        # --- RECHTS ---
+        # Zijkant
+        poly_r_side = [(r0, y0), (r0 + side_w0, y0), (r1 + side_w1, y1), (r1, y1)]
+        pygame.draw.polygon(surf, col_side, poly_r_side)
+
+        # Bovenkant
+        poly_r_top = [(r0 + side_w0, y0), (r0 + curb_w0, y0), (r1 + curb_w1, y1), (r1 + side_w1, y1)]
+        pygame.draw.polygon(surf, col_top, poly_r_top)
+
+    # 3. Teken de rijstroken
     for i in range(1, LANES):
         far_lane_w = ROAD_FAR_W / LANES
         near_lane_w = ROAD_NEAR_W / LANES
