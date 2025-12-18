@@ -958,8 +958,8 @@ def draw_info_overlay(target_surf, info_alpha, started, alive, paused, counting_
         else:
             status.append(f"Ammo {ammo}/{MAG_SIZE}")
 
-    draw_text_with_outline(target_surf, " | ".join(status), SMALL_FONT, (200, 200, 200), (lx, H - 110))
-    draw_text_with_outline(target_surf, "Click anywhere or press ESC / I to close", SMALL_FONT, (200, 200, 200), (lx, H - 85))
+    # draw_text_with_outline(target_surf, " | ".join(status), SMALL_FONT, (200, 200, 200), (lx, H - 110))
+    # draw_text_with_outline(target_surf, "Click anywhere or press ESC / I to close", SMALL_FONT, (200, 200, 200), (lx, H - 85))
 
 def draw_ammo_hud(frame, ammo, reloading, robot_ready, robot_active, robot_timer, kills):
     hud_x, hud_y = 20, 92
