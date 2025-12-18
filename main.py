@@ -145,7 +145,7 @@ SOUND_ENGINE = load_sound("car-effect1.mp3")
 MUSIC_PATH = os.path.join(SOUND_DIR, "Soundtrack.mp3")
 SOUND_EXPLOSION = load_sound("car_explosion.mp3")
 if SOUND_EXPLOSION:
-    SOUND_EXPLOSION.set_volume(0.6)
+    SOUND_EXPLOSION.set_volume(0.7)
 
 if SOUND_ENGINE:
     SOUND_ENGINE.set_volume(0.3)
