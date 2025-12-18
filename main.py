@@ -143,6 +143,9 @@ except Exception:
 
 SOUND_ENGINE = load_sound("car-effect1.mp3")
 MUSIC_PATH = os.path.join(SOUND_DIR, "Soundtrack.mp3")
+SOUND_EXPLOSION = load_sound("car_explosion.mp3")
+if SOUND_EXPLOSION:
+    SOUND_EXPLOSION.set_volume(0.6)
 
 if SOUND_ENGINE:
     SOUND_ENGINE.set_volume(0.3)
@@ -1045,12 +1048,14 @@ def main():
 
     def spawn_explosion_at_rect(r, z):
         explosions.append(Explosion(r.centerx, r.centery, z))
+        if SOUND_EXPLOSION:
+            SOUND_EXPLOSION.play()
         start_shake(10, 7)
 
     if os.path.exists(MUSIC_PATH):
         try:
             pygame.mixer.music.load(MUSIC_PATH)
-            pygame.mixer.music.set_volume(0.5)
+            pygame.mixer.music.set_volume(0.3)
             pygame.mixer.music.play(-1)
         except:
             pass
@@ -1349,6 +1354,8 @@ def main():
                                 last_score = score
                                 if SOUND_ENGINE:
                                     SOUND_ENGINE.stop()
+                                if SOUND_EXPLOSION:
+                                    SOUND_EXPLOSION.play()
                                 explosions.append(Explosion(p_rect.centerx, p_rect.centery, player.z))
                                 start_shake(22, 10)
 
@@ -1379,6 +1386,8 @@ def main():
                             if obs.hp <= 0:
                                 if not robot_active:
                                     kills += 1
+                                if SOUND_EXPLOSION:
+                                    SOUND_EXPLOSION.play()
                                 explosions.append(Explosion(orect.centerx, orect.centery, obs.z))
                                 start_shake(12, 7)
                                 obstacles.remove(obs)
@@ -1391,6 +1400,8 @@ def main():
                                     kills = 0
                                     robot_ready = False
                         else:
+                            if SOUND_EXPLOSION:
+                                SOUND_EXPLOSION.play()
                             explosions.append(Explosion(orect.centerx, orect.centery, obs.z))
                             start_shake(8, 5)
                             obstacles.remove(obs)
