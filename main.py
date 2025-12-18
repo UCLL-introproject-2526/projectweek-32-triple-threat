@@ -1328,7 +1328,6 @@ def main():
                                 # ROBOT: destroy obstacles on contact
                                 spawn_explosion_at_rect(o_rect, obs.z)
                                 if obs.kind == "car":
-                                    kills += 1
                                     score += ROBOT_CONTACT_SCORE_CAR
                                 else:
                                     score += ROBOT_CONTACT_SCORE_OTHER
@@ -1372,7 +1371,8 @@ def main():
                             score += 40
 
                             if obs.hp <= 0:
-                                kills += 1
+                                if not robot_active:
+                                    kills += 1
                                 explosions.append(Explosion(orect.centerx, orect.centery, obs.z))
                                 start_shake(12, 7)
                                 obstacles.remove(obs)
@@ -1382,6 +1382,7 @@ def main():
                                     robot_ready = True
                                     robot_active = True
                                     robot_timer = ROBOT_DURATION_FRAMES
+                                    kills = 0
                                     robot_ready = False
                         else:
                             explosions.append(Explosion(orect.centerx, orect.centery, obs.z))
