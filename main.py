@@ -156,7 +156,7 @@ if SOUND_EXPLOSION:
 if SOUND_ENGINE:
     SOUND_ENGINE.set_volume(0.3)
 if SOUND_ROBOT_ENGINE:
-    SOUND_ROBOT_ENGINE.set_volume(0.5)
+    SOUND_ROBOT_ENGINE.set_volume(0.2)
 if SOUND_TRANSFORM:
     SOUND_TRANSFORM.set_volume(0.7)
 if SOUND_BEEP:
@@ -1390,18 +1390,17 @@ def main():
                 if alive:
                     if boosting:
                         if robot_active:
-                            # Robot boost sound
-                            if SOUND_ENGINE:
+                            if SOUND_ENGINE and SOUND_ENGINE.get_num_channels() == 0:
                                 SOUND_ENGINE.stop()
 
-                            if SOUND_ROBOT_ENGINE:
+                            if SOUND_ROBOT_ENGINE and SOUND_ROBOT_ENGINE.get_num_channels() == 0:
                                 SOUND_ROBOT_ENGINE.play(-1)
                         else:
                             # Normal car boost sound
-                            if SOUND_ROBOT_ENGINE:
+                            if SOUND_ROBOT_ENGINE and SOUND_ROBOT_ENGINE.get_num_channels() == 0:
                                 SOUND_ROBOT_ENGINE.stop()
 
-                            if SOUND_ENGINE:
+                            if SOUND_ENGINE and SOUND_ENGINE.get_num_channels() == 0:
                                 SOUND_ENGINE.play(-1)
                     else:
                         # Not boosting → stop both
