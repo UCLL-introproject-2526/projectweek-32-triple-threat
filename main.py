@@ -1487,10 +1487,26 @@ def main():
             s = pygame.Surface((W, H), pygame.SRCALPHA)
             s.fill((50, 0, 0, 200))
             frame.blit(s, (0, 0))
+            
+            # --- LEADERBOARD LOGICA TOEVOEGEN ---
+            if not score_saved:
+                high_scores = save_new_score(last_score)
+                score_saved = True
+            
+            # Teksten iets omhoog verplaatsen voor ruimte
             txt = BIG_FONT.render("CRASHED!", True, (255, 50, 50))
-            frame.blit(txt, (W // 2 - txt.get_width() // 2, H // 2 - 120))
+            frame.blit(txt, (W // 2 - txt.get_width() // 2, H // 2 - 220))
+            
             score_txt = FONT.render(f"YOUR SCORE: {last_score}", True, WHITE)
-            frame.blit(score_txt, (W // 2 - score_txt.get_width() // 2, H // 2 - 30))
+            frame.blit(score_txt, (W // 2 - score_txt.get_width() // 2, H // 2 - 150))
+            
+            # Leaderboard tekenen
+            draw_leaderboard_panel(frame, high_scores, W // 2, H // 2 - 100)
+            
+            # Knoppen iets naar beneden verplaatsen zodat ze niet door de tekst staan
+            btn_restart.y = H // 2 + 90
+            btn_quit_over.y = H // 2 + 150
+            
             draw_button(frame, btn_restart, "RESTART")
             draw_button(frame, btn_quit_over, "QUIT", is_danger=True)
 
