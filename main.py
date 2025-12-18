@@ -144,16 +144,22 @@ except Exception:
 SOUND_ENGINE = load_sound("car-effect1.mp3")
 MUSIC_PATH = os.path.join(SOUND_DIR, "Soundtrack.mp3")
 SOUND_EXPLOSION = load_sound("car_explosion.mp3")
+SOUND_ROBOT_ENGINE = load_sound("transformer_running.mp3")
+SOUND_TRANSFORM = load_sound("transformation.mp3")
+SOUND_BEEP = load_sound("beep_start.mp3")
+SOUND_GO = load_sound("go_sound.mp3")
 if SOUND_EXPLOSION:
     SOUND_EXPLOSION.set_volume(0.7)
 if SOUND_ENGINE:
     SOUND_ENGINE.set_volume(0.3)
-SOUND_ROBOT_ENGINE = load_sound("transformer_running.mp3")
 if SOUND_ROBOT_ENGINE:
     SOUND_ROBOT_ENGINE.set_volume(0.5)
-SOUND_TRANSFORM = load_sound("transformation.mp3")
 if SOUND_TRANSFORM:
     SOUND_TRANSFORM.set_volume(0.7)
+if SOUND_BEEP:
+    SOUND_BEEP.set_volume(0.6)
+if SOUND_GO:
+    SOUND_GO.set_volume(0.8)
 
 
 SCALE_CACHE = {}
