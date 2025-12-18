@@ -200,8 +200,8 @@ WIN_RED        = (255, 50, 50)
 
 GRASS_DARK  = (10, 10, 20)
 GRASS_LIGHT = (15, 15, 30)
-SIDEWALK    = (40, 40, 50)
-SIDEWALK_L  = (50, 50, 60)
+SIDEWALK    = (120, 120, 130)
+SIDEWALK_L  = (140, 140, 150)
 LANTERN_GLOW = (255, 200, 50)
 
 # --- HELPER FUNCTIONS ---
@@ -326,8 +326,11 @@ def draw_countdown_lights(surf, stage):
         pygame.draw.circle(surf, main_color, (x, y), radius)
 
 def generate_building_surface(w, h, side):
-    surf = pygame.Surface((w, h))
-    surf.fill(BUILDING_BASE)
+    surf = pygame.Surface((w, h), pygame.SRCALPHA)
+    # surf.fill(BUILDING_BASE) 
+    
+    # Als je wilt dat het gebouw een basiskleur heeft, teken dan een rect:
+    pygame.draw.rect(surf, BUILDING_BASE, (0, 0, w, h)) 
     
     side_width = random.randint(5, 15)
     if side == -1:
@@ -428,8 +431,8 @@ def draw_background_and_terrain(surf, t_scroll):
         col_grass = GRASS_LIGHT if stripe == 0 else GRASS_DARK
         pygame.draw.rect(surf, col_grass, (0, int(y0), W, int(y1-y0)+1))
 
-        sw_w0 = (right0 - left0) * 0.4
-        sw_w1 = (right1 - left1) * 0.4
+        sw_w0 = (right0 - left0) * 0.25
+        sw_w1 = (right1 - left1) * 0.25
         col_side = SIDEWALK_L if stripe == 0 else SIDEWALK
         
         poly_l = [(left0 - sw_w0, y0), (left0, y0), (left1, y1), (left1 - sw_w1, y1)]
@@ -509,82 +512,133 @@ class Particle:
             surf.blit(s, (int(self.x), int(self.y)))
 
 class SideObject: 
-    def __init__(self, side, z):
+    def __init__(self, side, z, kind="lamp", x_offset=0):
         self.side = side 
         self.z = z
+        self.kind = kind  # "lamp", "bin", of "bench"
+        self.x_offset = x_offset # NIEUW: Verschuiving naar links/rechts op de stoep
         
     def update(self, speed):
         self.z += speed
 
     def draw(self, surf):
-        y = y_from_z(self.z)
         if self.z > 1.2: return 
-
+        y = y_from_z(self.z)
         scale = lerp(0.22, 1.18, self.z)
-        left_road, right_road = road_edges_at_y(y)
-        offset_x = 25 * scale 
         
-        if self.side == -1: x = left_road - offset_x
-        else: x = right_road + offset_x
+        # Bereken basispositie (rand van de weg)
+        left_road, right_road = road_edges_at_y(y)
+        road_width = right_road - left_road
+        sidewalk_offset = road_width * 0.15 
+        
+        if self.side == -1: 
+            x = left_road - sidewalk_offset
+        else: 
+            x = right_road + sidewalk_offset
             
-        self.draw_highway_lamp(surf, x, y, scale)
+        # Pas de extra offset toe (bijv. bankje meer naar achteren, vuilbak meer naar voren)
+        x += self.x_offset * scale
+
+        if self.kind == "lamp":
+            # Lamp staat iets verder naar buiten 
+            lamp_x = x - (20 * scale) if self.side == -1 else x + (20 * scale)
+            self.draw_highway_lamp(surf, lamp_x, y, scale)
+        elif self.kind == "bin":
+            self.draw_bin(surf, x, y, scale)
+        elif self.kind == "bench":
+            self.draw_bench(surf, x, y, scale)
+
+    def draw_bin(self, surf, x, y, scale):
+        w = 24 * scale
+        h = 38 * scale
+        rect = pygame.Rect(x - w//2, y - h, w, h)
+        draw_shadow(surf, rect, alpha=80)
+        pygame.draw.rect(surf, (20, 60, 30), rect, border_radius=int(2*scale))
+        for i in range(3):
+            lx = rect.x + (w * 0.25 * (i + 1))
+            pygame.draw.line(surf, (30, 70, 40), (lx, rect.y + 2), (lx, rect.bottom - 2), int(2*scale))
+        lid_h = 6 * scale
+        lid_rect = pygame.Rect(x - w//2 - (2*scale), y - h, w + (4*scale), lid_h)
+        pygame.draw.rect(surf, (100, 110, 100), lid_rect, border_radius=int(2*scale))
+        pygame.draw.rect(surf, (10, 10, 10), (x - w*0.3, y - h + (1*scale), w*0.6, lid_h*0.5))
+
+    def draw_bench(self, surf, x, y, scale):
+        # NIEUWE LOGICA: Zijaanzicht gericht naar de weg
+        
+        # Totale breedte van het bankje (van zijkant gezien is dit eigenlijk de diepte)
+        total_w = 40 * scale 
+        seat_h = 14 * scale    # Hoogte zitvlak vanaf grond
+        back_h = 28 * scale    # Totale hoogte rugleuning
+        
+        # Bepaal posities op basis van kant van de weg
+        # side -1 (links): Rugleuning links (ver van weg), Zitvlak rechts (naar weg toe)
+        # side 1 (rechts): Rugleuning rechts (ver van weg), Zitvlak links (naar weg toe)
+        
+        rect_back = None
+        rect_seat = None
+        
+        back_thickness = 8 * scale
+        seat_length = 32 * scale
+        
+        if self.side == -1: # Linkerkant straat -> Kijkt naar rechts
+            # Rugleuning (Links)
+            rect_back = pygame.Rect(x - total_w//2, y - back_h, back_thickness, back_h)
+            # Zitvlak (Rechts ervan)
+            rect_seat = pygame.Rect(x - total_w//2 + back_thickness, y - seat_h, seat_length, 6 * scale)
+        else: # Rechterkant straat -> Kijkt naar links
+            # Rugleuning (Rechts)
+            rect_back = pygame.Rect(x + total_w//2 - back_thickness, y - back_h, back_thickness, back_h)
+            # Zitvlak (Links ervan)
+            rect_seat = pygame.Rect(x + total_w//2 - back_thickness - seat_length, y - seat_h, seat_length, 6 * scale)
+
+        # Schaduw
+        shadow_rect = pygame.Rect(x - total_w//2, y - 4, total_w, 4)
+        draw_shadow(surf, shadow_rect, alpha=60)
+
+        # Poten
+        leg_w = 4 * scale
+        leg_x1 = rect_seat.left + 2 * scale
+        leg_x2 = rect_seat.right - 2 * scale - leg_w
+        pygame.draw.rect(surf, (60, 60, 60), (leg_x1, y - seat_h, leg_w, seat_h))
+        pygame.draw.rect(surf, (60, 60, 60), (leg_x2, y - seat_h, leg_w, seat_h))
+
+        # Teken Houtdelen
+        # Rug
+        pygame.draw.rect(surf, (140, 90, 40), rect_back) # Donkerder hout voor rug
+        pygame.draw.rect(surf, (110, 70, 30), rect_back, 1) # Rand
+        
+        # Zit
+        pygame.draw.rect(surf, (170, 110, 50), rect_seat) # Lichter hout voor zit
+        pygame.draw.rect(surf, (110, 70, 30), rect_seat, 1) # Rand
 
     def draw_highway_lamp(self, surf, x, y, scale):
+        # (Hier je bestaande lamp code behouden zoals die was)
         pole_color = (40, 44, 50) 
-        light_housing_color = (70, 75, 80) 
-        
         pole_h = 260 * scale
         pole_w = max(2, 7 * scale)
         arm_width = 70 * scale
         direction = 1 if self.side == -1 else -1
-        
         base_half_w = pole_w * 0.8
         top_half_w = pole_w * 0.4
-        
-        poly_pole = [
-            (x - base_half_w, y),           
-            (x - top_half_w, y - pole_h),   
-            (x + top_half_w, y - pole_h),   
-            (x + base_half_w, y)            
-        ]
+        poly_pole = [(x - base_half_w, y), (x - top_half_w, y - pole_h), (x + top_half_w, y - pole_h), (x + base_half_w, y)]
         pygame.draw.polygon(surf, pole_color, poly_pole)
-        
-        arm_start_x = x
         arm_start_y = y - pole_h + (2 * scale)
         arm_end_x = x + (direction * arm_width)
         arm_end_y = arm_start_y - (15 * scale) 
-        
-        pygame.draw.line(surf, pole_color, (arm_start_x, arm_start_y), (arm_end_x, arm_end_y), int(max(2, 5 * scale)))
-        
+        pygame.draw.line(surf, pole_color, (x, arm_start_y), (arm_end_x, arm_end_y), int(max(2, 5 * scale)))
         head_w = 28 * scale
         head_h = 10 * scale
-        hx = arm_end_x
-        hy = arm_end_y
-        
-        poly_head = [
-            (hx - (head_w/2), hy),              
-            (hx + (head_w/2), hy),              
-            (hx + (head_w/2 * 0.7), hy + head_h), 
-            (hx - (head_w/2 * 0.7), hy + head_h)  
-        ]
-        pygame.draw.polygon(surf, light_housing_color, poly_head)
-        
+        hx, hy = arm_end_x, arm_end_y
+        poly_head = [(hx - (head_w/2), hy), (hx + (head_w/2), hy), (hx + (head_w/2 * 0.7), hy + head_h), (hx - (head_w/2 * 0.7), hy + head_h)]
+        pygame.draw.polygon(surf, (70, 75, 80), poly_head)
         bulb_rect = pygame.Rect(0, 0, head_w * 0.6, 3 * scale)
         bulb_rect.center = (hx, hy + head_h)
         pygame.draw.rect(surf, (255, 255, 240), bulb_rect)
-        
         glow_size = 20 * scale 
         glow_surf = pygame.Surface((int(glow_size), int(glow_size)), pygame.SRCALPHA)
-        rect_glow = pygame.Rect(0, 0, glow_size, glow_size)
-        pygame.draw.ellipse(glow_surf, (*LANTERN_GLOW, 25), rect_glow)
-        
-        rect_core = pygame.Rect(glow_size*0.25, 0, glow_size*0.5, glow_size*0.6)
-        pygame.draw.ellipse(glow_surf, (255, 255, 255, 40), rect_core)
-        
-        dest_x = hx - (glow_size // 2)
-        dest_y = hy + head_h - (10 * scale) 
-        surf.blit(glow_surf, (dest_x, dest_y), special_flags=pygame.BLEND_ADD)
-        pygame.draw.circle(surf, (255, 255, 255), (int(hx), int(hy + head_h)), int(3 * scale))
+        pygame.draw.ellipse(glow_surf, (*LANTERN_GLOW, 25), pygame.Rect(0, 0, glow_size, glow_size))
+        pygame.draw.ellipse(glow_surf, (255, 255, 255, 40), pygame.Rect(glow_size*0.25, 0, glow_size*0.5, glow_size*0.6))
+        surf.blit(glow_surf, (hx - (glow_size // 2), hy + head_h - (10 * scale)), special_flags=pygame.BLEND_ADD)
 
 class Building:
     def __init__(self, side, z, layer=1):
@@ -614,12 +668,17 @@ class Building:
         w = int(self.base_w * scale)
         h = int(self.base_h * scale)
         left_road, right_road = road_edges_at_y(y)
+
+        road_width = right_road - left_road
+        sidewalk_width = road_width * 0.29
         
         if self.layer == 1: dist_from_road = 50 * scale
         else: dist_from_road = 180 * scale 
 
-        if self.side == -1: x = left_road - w - dist_from_road
-        else: x = right_road + dist_from_road
+        if self.side == -1:
+            x = left_road - sidewalk_width - w + 2
+        else:
+            x = right_road + sidewalk_width - 2
 
         sink_amount = int(h * 0.05)
         rect = pygame.Rect(int(x), int(y - h) + sink_amount, w, h)
@@ -1079,6 +1138,8 @@ def main():
     btn_restart = pygame.Rect(center_x, H // 2 + 40, btn_w, btn_h)
     btn_quit_over = pygame.Rect(center_x, H // 2 + 120, btn_w, btn_h)
     btn_info = pygame.Rect(W - 70, 20, 50, 50)
+    
+    lantern_spawn_count = 0 # Teller initialiseren
 
     while True:
         dt = clock.tick(60)
@@ -1290,13 +1351,24 @@ def main():
                             enemy_cycle_i = (enemy_cycle_i + 1) % len(IMG_ENEMIES)
                         obstacles.append(Obstacle(lane, z_spawn, kind, sprite))
 
+                # --- AANGEPASTE SIDEWALK SPAWN MET VAST PATROON ---
                 lantern_spawn_progress += speed
-                if lantern_spawn_progress > 0.40:
+                if lantern_spawn_progress > 0.30:
                     lantern_spawn_progress = 0
-                    buildings.append(SideObject(-1, Z_SPAWN_MIN))
-                    buildings.append(SideObject(1, Z_SPAWN_MIN))
+                                        
+                    # 2. Plaats ALTIJD Lantaarnpalen
+                    buildings.append(SideObject(-1, Z_SPAWN_MIN, kind="lamp"))
+                    buildings.append(SideObject(1, Z_SPAWN_MIN, kind="lamp"))
 
-               # --- AANGEPASTE BUILDING SPAWN LOGICA ---
+                    if random.random() < 0.3: 
+                        # x_offset zorgt dat hij niet IN de paal staat, maar ernaast
+                        buildings.append(SideObject(-1, Z_SPAWN_MIN + 0.005, kind="bin", x_offset=15))
+                        
+                    # Rechts
+                    if random.random() < 0.3:
+                        buildings.append(SideObject(1, Z_SPAWN_MIN + 0.005, kind="bin", x_offset=-15))
+
+                # --- AANGEPASTE BUILDING SPAWN LOGICA ---
                 building_spawn_progress += speed
                 
                 # Check veel vaker (was 0.12, nu 0.01)
@@ -1320,7 +1392,7 @@ def main():
                             buildings.append(Building(-1, Z_SPAWN_MIN, layer=2))
                         if not any(isinstance(b, Building) and b.layer == 2 and b.side == 1 and abs(b.z - Z_SPAWN_MIN) < 0.15 for b in buildings):
                             buildings.append(Building(1, Z_SPAWN_MIN, layer=2))
-                            
+
                 p_rect = player.get_rect()
                 for b in buildings[:]:
                     b.update(speed)
@@ -1573,4 +1645,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
