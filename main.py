@@ -109,17 +109,33 @@ IMG_FALLBACK_ENEMY = pygame.transform.rotate(load_image("car.png"), 0)
 
 MAG_ICON = load_image("ammo.png")
 
-def load_robot_frames(folder, prefix, count=10):
+def load_robot_frames(folder, prefix, max_count=60):
     frames = []
-    for i in range(1, count + 1):
-        frames.append(load_image(os.path.join("animations", folder, f"{prefix}_{i}.png")))
+    for i in range(1, max_count + 1):
+        img = load_image(os.path.join("animations", folder, f"{prefix}_{i}.png"))
+
+        # detect fallback (your load_image creates a 50x50 magenta surface)
+        if img.get_width() == 50 and img.get_height() == 50:
+            break
+
+        frames.append(img)
+
     return frames
 
-ROBOT_FRAMES_PER_CAR = [
+
+
+ROBOT_TRANSFORM_FRAMES_PER_CAR = [
+    load_robot_frames("porsche-transformation", "porsche_transform"),
+    load_robot_frames("bmw-transformation", "bmw_transform"),
+    load_robot_frames("skyline-transformation", "nissan_transform"),
+]
+
+ROBOT_RUN_FRAMES_PER_CAR = [
     load_robot_frames("porsche-animation", "porsche_trans"),
     load_robot_frames("bmw-animation", "bmw_trans"),
     load_robot_frames("skyline-animation", "skyline_trans"),
 ]
+
 
 try:
     raw_skyline = load_image("skyline.png")
@@ -732,10 +748,14 @@ class Building:
         surf.blit(img, rect.topleft)
 
 class Player:
-    def __init__(self, image, robot_frames):
+    def __init__(self, image, transform_frames, run_frames):
         self.original_image = image
-        self.robot_frames = robot_frames[:] if robot_frames else []
+
+        self.transform_frames = transform_frames[:] if transform_frames else []
+        self.run_frames = run_frames[:] if run_frames else []
+
         self.robot_mode = False
+        self.robot_transforming = False
         self.robot_frame = 0.0
 
         self.lane = 1
@@ -750,9 +770,22 @@ class Player:
         self.particles = []
 
     def set_robot(self, on: bool):
-        if on and not self.robot_mode:
-            self.robot_frame = 0.0
+        # just sets the mode flag (animation state handled elsewhere)
         self.robot_mode = bool(on)
+        if not on:
+            self.robot_transforming = False
+            self.robot_frame = 0.0
+
+    def start_robot_transform(self):
+        # call this ONLY on the activation moment
+        self.robot_mode = True
+        if self.transform_frames:
+            self.robot_transforming = True
+            self.robot_frame = 0.0
+        else:
+            # no transform frames -> go straight to running loop
+            self.robot_transforming = False
+            self.robot_frame = 0.0
 
     def move_left(self):
         if self.lane == self.target_lane and self.target_lane > 0:
@@ -786,8 +819,16 @@ class Player:
             if p.life <= 0:
                 self.particles.remove(p)
 
-        if self.robot_mode and self.robot_frames:
-            self.robot_frame = (self.robot_frame + ROBOT_ANIM_SPEED) % len(self.robot_frames)
+        # ---- robot animation update ----
+        if self.robot_mode:
+            if self.robot_transforming and self.transform_frames:
+                self.robot_frame += ROBOT_ANIM_SPEED
+                if self.robot_frame >= len(self.transform_frames) - 1:
+                    self.robot_transforming = False
+                    self.robot_frame = 0.0  # start running from beginning
+            else:
+                if self.run_frames:
+                    self.robot_frame = (self.robot_frame + ROBOT_ANIM_SPEED) % len(self.run_frames)
 
     def get_rect_no_rotate(self):
         y = y_from_z(self.z)
@@ -816,17 +857,28 @@ class Player:
         r = self.get_rect_no_rotate()
         draw_shadow(surf, r)
 
-        if self.robot_mode and self.robot_frames:
-            idx = int(self.robot_frame) % len(self.robot_frames)
-            img0 = self.robot_frames[idx]
-            robot_scale = 1.45
-            rw = int(r.w * robot_scale)
-            rh = int(r.h * robot_scale)
-            img = scale_cached(img0, (rw, rh), SCALE_CACHE)
-            dst = img.get_rect(midbottom=r.midbottom)
-            surf.blit(img, dst.topleft)
-            return
+        # ---- robot draw ----
+        if self.robot_mode:
+            img0 = None
 
+            if self.robot_transforming and self.transform_frames:
+                idx = int(self.robot_frame)
+                idx = max(0, min(idx, len(self.transform_frames) - 1))
+                img0 = self.transform_frames[idx]
+            elif self.run_frames:
+                idx = int(self.robot_frame) % len(self.run_frames)
+                img0 = self.run_frames[idx]
+
+            if img0:
+                robot_scale = 1.45
+                rw = int(r.w * robot_scale)
+                rh = int(r.h * robot_scale)
+                img = scale_cached(img0, (rw, rh), SCALE_CACHE)
+                dst = img.get_rect(midbottom=r.midbottom)
+                surf.blit(img, dst.topleft)
+                return
+
+        # ---- normal car draw ----
         img = scale_cached(self.original_image, (r.w, r.h), SCALE_CACHE)
         if abs(self.angle) > 1:
             img = pygame.transform.rotate(img, self.angle)
@@ -834,6 +886,7 @@ class Player:
             surf.blit(img, new_rect.topleft)
         else:
             surf.blit(img, r.topleft)
+
 
 class Obstacle:
     def __init__(self, lane, z, kind="car", sprite=None):
@@ -1144,6 +1197,7 @@ def main():
     robot_ready = False
     robot_active = False
     robot_timer = 0
+    prev_robot_active = False
 
     def toggle_info(open_it=None):
         nonlocal show_info
@@ -1225,8 +1279,10 @@ def main():
 
                         player = Player(
                             PLAYER_DRIVE_SPRITES[selected_car_idx],
-                            ROBOT_FRAMES_PER_CAR[selected_car_idx]
+                            ROBOT_TRANSFORM_FRAMES_PER_CAR[selected_car_idx],
+                            ROBOT_RUN_FRAMES_PER_CAR[selected_car_idx],
                         )
+
 
                         ammo = MAG_SIZE
                         reloading = False
@@ -1290,7 +1346,8 @@ def main():
 
                         player = Player(
                             PLAYER_DRIVE_SPRITES[selected_car_idx],
-                            ROBOT_FRAMES_PER_CAR[selected_car_idx]
+                            ROBOT_TRANSFORM_FRAMES_PER_CAR[selected_car_idx],
+                            ROBOT_RUN_FRAMES_PER_CAR[selected_car_idx],
                         )
                         ammo = MAG_SIZE
                         reloading = False
@@ -1361,8 +1418,13 @@ def main():
                     robot_active = False
                     robot_timer = 0
 
+
         if player:
+            if robot_active and not prev_robot_active:
+                player.start_robot_transform()   # plays transform then runs
             player.set_robot(robot_active)
+
+        prev_robot_active = robot_active
 
         if started and alive and not paused:
             if counting_down:
