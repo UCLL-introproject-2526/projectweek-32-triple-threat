@@ -2,7 +2,7 @@ import pygame
 import random
 import sys
 import os
-import json 
+import json
 
 # --- PATH CONFIGURATION ---
 BASE_DIR = os.path.dirname(__file__)
@@ -40,7 +40,7 @@ def save_new_score(score):
     scores = get_high_scores()
     scores.append(score)
     scores.sort(reverse=True)
-    scores = scores[:3] # Top 3
+    scores = scores[:3]
     
     with open(LEADERBOARD_FILE, "w") as f:
         json.dump(scores, f)
@@ -486,7 +486,7 @@ def draw_road(surf, dash_offset=0.0):
                  (near_right, ROAD_NEAR_Y), (near_left, ROAD_NEAR_Y)]
     pygame.draw.polygon(surf, (40, 40, 50), road_poly)
 
-    # 2. Teken de 3D Curbs (Smalle, donkere rand)
+    # 2. Teken de 3D Curbs 
     num_segments = 24
     for i in range(num_segments):
         t0 = i / num_segments
@@ -511,16 +511,13 @@ def draw_road(surf, dash_offset=0.0):
         col_side = KERB_SIDE_COLOR
 
         # --- LINKS ---
-        # Zijkant (Diepte)
         poly_l_side = [(l0 - side_w0, y0), (l0, y0), (l1, y1), (l1 - side_w1, y1)]
         pygame.draw.polygon(surf, col_side, poly_l_side)
 
-        # Bovenkant (Plat)
         poly_l_top = [(l0 - curb_w0, y0), (l0 - side_w0, y0), (l1 - side_w1, y1), (l1 - curb_w1, y1)]
         pygame.draw.polygon(surf, col_top, poly_l_top)
 
         # --- RECHTS ---
-        # Zijkant
         poly_r_side = [(r0, y0), (r0 + side_w0, y0), (r1 + side_w1, y1), (r1, y1)]
         pygame.draw.polygon(surf, col_side, poly_r_side)
 
@@ -590,7 +587,7 @@ class SideObject:
     def __init__(self, side, z, kind="lamp", x_offset=0):
         self.side = side 
         self.z = z
-        self.kind = kind  # "lamp", "bin", of "bench"
+        self.kind = kind 
         self.x_offset = x_offset # NIEUW: Verschuiving naar links/rechts op de stoep
         
     def update(self, speed):
@@ -611,7 +608,6 @@ class SideObject:
         else: 
             x = right_road + sidewalk_offset
             
-        # Pas de extra offset toe (bijv. bankje meer naar achteren, vuilbak meer naar voren)
         x += self.x_offset * scale
 
         if self.kind == "lamp":
@@ -637,57 +633,8 @@ class SideObject:
         pygame.draw.rect(surf, (100, 110, 100), lid_rect, border_radius=int(2*scale))
         pygame.draw.rect(surf, (10, 10, 10), (x - w*0.3, y - h + (1*scale), w*0.6, lid_h*0.5))
 
-    def draw_bench(self, surf, x, y, scale):
-        # NIEUWE LOGICA: Zijaanzicht gericht naar de weg
-        
-        # Totale breedte van het bankje (van zijkant gezien is dit eigenlijk de diepte)
-        total_w = 40 * scale 
-        seat_h = 14 * scale    # Hoogte zitvlak vanaf grond
-        back_h = 28 * scale    # Totale hoogte rugleuning
-        
-        # Bepaal posities op basis van kant van de weg
-        # side -1 (links): Rugleuning links (ver van weg), Zitvlak rechts (naar weg toe)
-        # side 1 (rechts): Rugleuning rechts (ver van weg), Zitvlak links (naar weg toe)
-        
-        rect_back = None
-        rect_seat = None
-        
-        back_thickness = 8 * scale
-        seat_length = 32 * scale
-        
-        if self.side == -1: # Linkerkant straat -> Kijkt naar rechts
-            # Rugleuning (Links)
-            rect_back = pygame.Rect(x - total_w//2, y - back_h, back_thickness, back_h)
-            # Zitvlak (Rechts ervan)
-            rect_seat = pygame.Rect(x - total_w//2 + back_thickness, y - seat_h, seat_length, 6 * scale)
-        else: # Rechterkant straat -> Kijkt naar links
-            # Rugleuning (Rechts)
-            rect_back = pygame.Rect(x + total_w//2 - back_thickness, y - back_h, back_thickness, back_h)
-            # Zitvlak (Links ervan)
-            rect_seat = pygame.Rect(x + total_w//2 - back_thickness - seat_length, y - seat_h, seat_length, 6 * scale)
-
-        # Schaduw
-        shadow_rect = pygame.Rect(x - total_w//2, y - 4, total_w, 4)
-        draw_shadow(surf, shadow_rect, alpha=60)
-
-        # Poten
-        leg_w = 4 * scale
-        leg_x1 = rect_seat.left + 2 * scale
-        leg_x2 = rect_seat.right - 2 * scale - leg_w
-        pygame.draw.rect(surf, (60, 60, 60), (leg_x1, y - seat_h, leg_w, seat_h))
-        pygame.draw.rect(surf, (60, 60, 60), (leg_x2, y - seat_h, leg_w, seat_h))
-
-        # Teken Houtdelen
-        # Rug
-        pygame.draw.rect(surf, (140, 90, 40), rect_back) # Donkerder hout voor rug
-        pygame.draw.rect(surf, (110, 70, 30), rect_back, 1) # Rand
-        
-        # Zit
-        pygame.draw.rect(surf, (170, 110, 50), rect_seat) # Lichter hout voor zit
-        pygame.draw.rect(surf, (110, 70, 30), rect_seat, 1) # Rand
-
+   
     def draw_highway_lamp(self, surf, x, y, scale):
-        # (Hier je bestaande lamp code behouden zoals die was)
         pole_color = (40, 44, 50) 
         pole_h = 260 * scale
         pole_w = max(2, 7 * scale)
@@ -804,7 +751,6 @@ class Player:
 
         # turning OFF:
         if self.robot_mode:
-            # IMPORTANT: don't restart revert every frame
             if self.transform_frames:
                 if not self.robot_reverting:
                     self.robot_transforming = False
@@ -820,7 +766,6 @@ class Player:
 
 
     def start_robot_transform(self):
-        # call this ONLY on the activation moment
         self.robot_mode = True
         if self.transform_frames:
             self.robot_transforming = True
@@ -1170,8 +1115,6 @@ def draw_info_overlay(target_surf, info_alpha, started, alive, paused, counting_
         else:
             status.append(f"Ammo {ammo}/{MAG_SIZE}")
 
-    # draw_text_with_outline(target_surf, " | ".join(status), SMALL_FONT, (200, 200, 200), (lx, H - 110))
-    # draw_text_with_outline(target_surf, "Click anywhere or press ESC / I to close", SMALL_FONT, (200, 200, 200), (lx, H - 85))
 
 def draw_ammo_hud(frame, ammo, reloading, robot_ready, robot_active, robot_timer, kills):
     hud_x, hud_y = 20, 92
@@ -1571,29 +1514,23 @@ def main():
                 if lantern_spawn_progress > 0.30:
                     lantern_spawn_progress = 0
                                         
-                    # 2. Plaats ALTIJD Lantaarnpalen
                     buildings.append(SideObject(-1, Z_SPAWN_MIN, kind="lamp"))
                     buildings.append(SideObject(1, Z_SPAWN_MIN, kind="lamp"))
 
                     if random.random() < 0.3: 
-                        # x_offset zorgt dat hij niet IN de paal staat, maar ernaast
                         buildings.append(SideObject(-1, Z_SPAWN_MIN + 0.005, kind="bin", x_offset=15))
                         
-                    # Rechts
                     if random.random() < 0.3:
                         buildings.append(SideObject(1, Z_SPAWN_MIN + 0.005, kind="bin", x_offset=-15))
 
                 # --- AANGEPASTE BUILDING SPAWN LOGICA ---
                 building_spawn_progress += speed
                 
-                # Check veel vaker (was 0.12, nu 0.01)
                 if building_spawn_progress > 0.01:
                     building_spawn_progress = 0
 
                     # --- EERSTE LAAG (Dicht op de weg) ---
-                    # We halen de 'random < 0.4' weg zodat hij altijd probeert te bouwen
                     
-                    # Check of er ruimte is (collision distance verlaagd van 0.2 naar 0.08 voor dichtere gebouwen)
                     if not any(isinstance(b, Building) and b.layer == 1 and b.side == -1 and abs(b.z - Z_SPAWN_MIN) < 0.08 for b in buildings):
                         buildings.append(Building(-1, Z_SPAWN_MIN, layer=1))
                     
@@ -1601,7 +1538,6 @@ def main():
                         buildings.append(Building(1, Z_SPAWN_MIN, layer=1))
 
                     # --- TWEEDE LAAG (Achtergrond, optioneel 'vol' maken) ---
-                    # Hier kun je wel random houden voor variatie, of ook weghalen voor een muur
                     if random.random() < 0.6: 
                         if not any(isinstance(b, Building) and b.layer == 2 and b.side == -1 and abs(b.z - Z_SPAWN_MIN) < 0.15 for b in buildings):
                             buildings.append(Building(-1, Z_SPAWN_MIN, layer=2))
@@ -1614,7 +1550,6 @@ def main():
                     if b.z > 1.3:
                         buildings.remove(b)
 
-                # update obstacles + player collision
                 for obs in obstacles[:]:
                     obs.update(speed)
                     if obs.z > 1.3:
